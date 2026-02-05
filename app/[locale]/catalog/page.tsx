@@ -73,7 +73,7 @@ export default function CatalogPage() {
           .eq('category_id', categoryFilter)
 
         if (productIds && productIds.length > 0) {
-          const ids = productIds.map(p => p.product_id)
+          const ids = productIds.map((p: { product_id: string }) => p.product_id)
           query = query.in('id', ids)
         } else {
           // No products in this category

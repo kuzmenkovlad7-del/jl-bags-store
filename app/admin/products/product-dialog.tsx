@@ -71,7 +71,7 @@ export function ProductDialog({
         .select('category_id')
         .eq('product_id', product.id)
 
-      return data?.map(pc => pc.category_id) || []
+      return data?.map((pc: { category_id: string }) => pc.category_id) || []
     }
 
     async function loadProductMedia() {
