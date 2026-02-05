@@ -115,7 +115,7 @@ export default function HomePage({
               {t(locale, 'home.hero_subtitle')}
             </motion.p>
 
-            <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row gap-4">
+            <motion.div variants={fadeInUp}>
               <Button
                 asChild
                 size="lg"
@@ -123,17 +123,6 @@ export default function HomePage({
               >
                 <Link href={`/${locale}/catalog`}>
                   {t(locale, 'home.shop_now')}
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="border-2 border-white text-white hover:bg-white hover:text-black text-lg px-10 py-7 h-auto rounded-full font-semibold"
-              >
-                <Link href={`/${locale}/wholesale`}>
-                  {t(locale, 'home.learn_more')}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>

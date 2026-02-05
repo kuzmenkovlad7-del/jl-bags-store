@@ -54,46 +54,56 @@ export default function CatalogPage() {
         setCategories(categoriesData)
       }
 
-      // Load products with category filter if selected
-      let query = supabase
-        .from('products')
-        .select(`
-          *,
-          media:product_media(*),
-          categories:product_categories(category:categories(*))
-        `)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
+      // Load products - simplified query without nested category relation
+      let productIds: string[] | null = null
 
-      // If category filter is selected, filter by category
+      // If category filter is selected, get product IDs first
       if (categoryFilter !== 'all') {
-        const { data: productIds } = await supabase
+        const { data: categoryProductIds, error: catError } = await supabase
           .from('product_categories')
           .select('product_id')
           .eq('category_id', categoryFilter)
 
-        if (productIds && productIds.length > 0) {
-          const ids = productIds.map((p: { product_id: string }) => p.product_id)
-          query = query.in('id', ids)
+        if (catError) {
+          console.error('Category filter error, falling back to all products:', catError)
+          // Fallback: show all products if category query fails
+        } else if (categoryProductIds && categoryProductIds.length > 0) {
+          productIds = categoryProductIds.map((p: { product_id: string }) => p.product_id)
         } else {
-          // No products in this category
+          // True empty state: category selected but no products
           setProducts([])
           setLoading(false)
           return
         }
       }
 
+      // Build base query
+      let query = supabase
+        .from('products')
+        .select('*, media:product_media(*)')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+
+      // Apply category filter if we have product IDs
+      if (productIds && productIds.length > 0) {
+        query = query.in('id', productIds)
+      }
+
       const { data, error } = await query
 
       if (error) {
         console.error('Error loading products:', error)
-      }
-
-      if (data) {
+        // Fallback: set empty array on error
+        setProducts([])
+      } else if (data) {
         setProducts(data)
+      } else {
+        setProducts([])
       }
     } catch (error) {
       console.error('Failed to load data:', error)
+      // Fallback: set empty array on exception
+      setProducts([])
     } finally {
       setLoading(false)
     }
