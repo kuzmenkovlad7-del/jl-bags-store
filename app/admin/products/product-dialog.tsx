@@ -13,6 +13,7 @@ import { Product, StockStatus, Category } from '@/lib/types'
 import { useToast } from '@/components/ui/use-toast'
 import { ta } from '@/lib/admin-i18n'
 import { MediaUpload } from '@/components/admin/media-upload'
+import { ColorsEditor } from '@/components/admin/colors-editor'
 
 interface ProductDialogProps {
   open: boolean
@@ -44,7 +45,7 @@ export function ProductDialog({
     price_retail: '0',
     price_drop: '0',
     stock_status: 'in_stock' as StockStatus,
-    colors_json: '[]',
+    colors: [] as Array<{ color: string; price_retail: number; price_drop: number }>,
     categories: [] as string[],
     is_new: false,
     is_hit: false,
@@ -102,7 +103,7 @@ export function ProductDialog({
           price_retail: product.price_retail.toString(),
           price_drop: product.price_drop.toString(),
           stock_status: product.stock_status,
-          colors_json: JSON.stringify(product.colors_json || []),
+          colors: product.colors_json || [],
           categories: categoryIds,
           is_new: product.is_new || false,
           is_hit: product.is_hit || false,
@@ -124,7 +125,7 @@ export function ProductDialog({
         price_retail: '0',
         price_drop: '0',
         stock_status: 'in_stock',
-        colors_json: '[]',
+        colors: [],
         categories: [],
         is_new: false,
         is_hit: false,
@@ -151,13 +152,6 @@ export function ProductDialog({
     setLoading(true)
 
     try {
-      let colorsJson
-      try {
-        colorsJson = JSON.parse(formData.colors_json)
-      } catch {
-        colorsJson = []
-      }
-
       const data = {
         code: formData.code,
         name_uk: formData.name_uk,
@@ -171,7 +165,7 @@ export function ProductDialog({
         price_retail: parseFloat(formData.price_retail),
         price_drop: parseFloat(formData.price_drop),
         stock_status: formData.stock_status,
-        colors_json: colorsJson,
+        colors_json: formData.colors,
         is_new: formData.is_new,
         is_hit: formData.is_hit,
         is_sale: formData.is_sale,
@@ -392,20 +386,15 @@ export function ProductDialog({
           </div>
 
           <div>
-            <Label htmlFor="colors_json">{ta('productForm.colorsJson')}</Label>
-            <Textarea
-              id="colors_json"
-              value={formData.colors_json}
-              onChange={(e) =>
-                setFormData({ ...formData, colors_json: e.target.value })
-              }
-              placeholder={ta('productForm.colorsPlaceholder')}
+            <ColorsEditor
+              colors={formData.colors}
+              onChange={(colors) => setFormData({ ...formData, colors })}
             />
           </div>
 
           {product?.id && (
             <div className="border-t pt-4">
-              <Label className="mb-2 block">Media</Label>
+              <Label className="mb-2 block">{ta('productForm.media')}</Label>
               <MediaUpload
                 productId={product.id}
                 productCode={product.code}
@@ -416,7 +405,7 @@ export function ProductDialog({
           )}
 
           <div className="border-t pt-4">
-            <Label className="mb-3 block">Categories</Label>
+            <Label className="mb-3 block">{ta('productForm.categories')}</Label>
             <div className="grid grid-cols-2 gap-3">
               {categories.map((category) => (
                 <div key={category.id} className="flex items-center space-x-2">
@@ -451,7 +440,7 @@ export function ProductDialog({
           </div>
 
           <div className="border-t pt-4">
-            <Label className="mb-3 block">Product Flags</Label>
+            <Label className="mb-3 block">Метки товара</Label>
             <div className="grid grid-cols-3 gap-4">
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -465,7 +454,7 @@ export function ProductDialog({
                   htmlFor="is_new"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                 >
-                  New
+                  {ta('productForm.isNew')}
                 </label>
               </div>
               <div className="flex items-center space-x-2">
@@ -480,7 +469,7 @@ export function ProductDialog({
                   htmlFor="is_hit"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                 >
-                  Hit
+                  {ta('productForm.isHit')}
                 </label>
               </div>
               <div className="flex items-center space-x-2">
@@ -495,7 +484,7 @@ export function ProductDialog({
                   htmlFor="is_sale"
                   className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                 >
-                  Sale
+                  {ta('productForm.isSale')}
                 </label>
               </div>
             </div>
