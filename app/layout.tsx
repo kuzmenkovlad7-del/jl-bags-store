@@ -5,10 +5,17 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin", "cyrillic"] })
 
 export const metadata: Metadata = {
-  title: "JL - Жіночі сумки",
-  description: "Преміальні жіночі сумки від JL",
+  title: "Julia Lebedeva — Преміальні жіночі сумки в Україні",
+  description: "Преміальні жіночі сумки та аксесуари від Julia Lebedeva. Актуальні колекції, швидка доставка по Україні, опт для партнерів.",
+  keywords: "жіночі сумки, сумки Україна, Julia Lebedeva, преміальні сумки, опт сумки, дропшипінг",
   icons: {
-    icon: "/brand/logo.png",
+    icon: "/branding/logo-round.png",
+  },
+  openGraph: {
+    title: "Julia Lebedeva — Преміальні жіночі сумки",
+    description: "Преміальні жіночі сумки та аксесуари. Актуальні колекції, швидка доставка.",
+    type: "website",
+    locale: "uk_UA",
   },
 }
 
