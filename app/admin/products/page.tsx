@@ -8,6 +8,7 @@ import { Product } from '@/lib/types'
 import { useToast } from '@/components/ui/use-toast'
 import { formatPrice } from '@/lib/utils'
 import { ProductDialog } from './product-dialog'
+import { ta } from '@/lib/admin-i18n'
 
 export default function AdminProductsPage() {
   const { toast } = useToast()
@@ -40,14 +41,14 @@ export default function AdminProductsPage() {
 
     if (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to update product',
+        title: ta('common.error'),
+        description: ta('products.errorUpdate'),
         variant: 'destructive',
       })
       return
     }
 
-    toast({ title: 'Product updated' })
+    toast({ title: ta('products.productUpdated') })
     loadProducts()
   }
 
@@ -78,32 +79,32 @@ export default function AdminProductsPage() {
 
     if (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to duplicate product',
+        title: ta('common.error'),
+        description: ta('products.errorUpdate'),
         variant: 'destructive',
       })
       return
     }
 
-    toast({ title: 'Product duplicated' })
+    toast({ title: ta('products.productDuplicated') })
     loadProducts()
   }
 
   async function deleteProduct(id: string) {
-    if (!confirm('Are you sure you want to delete this product?')) return
+    if (!confirm(ta('products.confirmDelete'))) return
 
     const { error } = await supabase.from('products').delete().eq('id', id)
 
     if (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to delete product',
+        title: ta('common.error'),
+        description: ta('products.errorDelete'),
         variant: 'destructive',
       })
       return
     }
 
-    toast({ title: 'Product deleted' })
+    toast({ title: ta('products.productDeleted') })
     loadProducts()
   }
 
@@ -124,16 +125,16 @@ export default function AdminProductsPage() {
   }
 
   if (loading) {
-    return <div>Loading...</div>
+    return <div>{ta('products.loading')}</div>
   }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Products</h1>
+        <h1 className="text-3xl font-bold">{ta('products.title')}</h1>
         <Button onClick={openCreateDialog}>
           <Plus className="h-4 w-4 mr-2" />
-          Add Product
+          {ta('products.addProduct')}
         </Button>
       </div>
 
@@ -141,12 +142,12 @@ export default function AdminProductsPage() {
         <table className="w-full">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium">Code</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Name</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Prices</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Stock</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
-              <th className="px-4 py-3 text-right text-sm font-medium">Actions</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">{ta('products.code')}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">{ta('products.name')}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">{ta('products.prices')}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">{ta('products.stock')}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">{ta('products.status')}</th>
+              <th className="px-4 py-3 text-right text-sm font-medium">{ta('products.actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -156,10 +157,10 @@ export default function AdminProductsPage() {
                 <td className="px-4 py-3 text-sm">{product.name_uk}</td>
                 <td className="px-4 py-3 text-sm">
                   <div className="text-xs text-muted-foreground">
-                    Retail: {formatPrice(product.price_retail)}
+                    {ta('products.retail')}: {formatPrice(product.price_retail)}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    Drop: {formatPrice(product.price_drop)}
+                    {ta('products.drop')}: {formatPrice(product.price_drop)}
                   </div>
                 </td>
                 <td className="px-4 py-3 text-sm">

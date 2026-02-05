@@ -6,6 +6,7 @@ import { Order, OrderStatus } from '@/lib/types'
 import { useToast } from '@/components/ui/use-toast'
 import { formatPrice } from '@/lib/utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ta } from '@/lib/admin-i18n'
 
 export default function AdminOrdersPage() {
   const { toast } = useToast()
@@ -36,37 +37,37 @@ export default function AdminOrdersPage() {
 
     if (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to update order status',
+        title: ta('common.error'),
+        description: ta('orders.errorUpdate'),
         variant: 'destructive',
       })
       return
     }
 
-    toast({ title: 'Order status updated' })
+    toast({ title: ta('orders.orderUpdated') })
     loadOrders()
   }
 
   if (loading) {
-    return <div>Loading...</div>
+    return <div>{ta('orders.loading')}</div>
   }
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-6">Orders</h1>
+      <h1 className="text-3xl font-bold mb-6">{ta('orders.title')}</h1>
 
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="w-full">
           <thead className="bg-gray-50 border-b">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-medium">ID</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Customer</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Phone</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Type</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Items</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Status</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Webhook</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">Date</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.orderNumber')}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.customer')}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.phone')}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.type')}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.items')}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.status')}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.webhook')}</th>
+              <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.date')}</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -113,12 +114,12 @@ export default function AdminOrdersPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="new">New</SelectItem>
-                      <SelectItem value="confirmed">Confirmed</SelectItem>
-                      <SelectItem value="packed">Packed</SelectItem>
-                      <SelectItem value="shipped">Shipped</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="canceled">Canceled</SelectItem>
+                      <SelectItem value="new">{ta('orders.statusNew')}</SelectItem>
+                      <SelectItem value="confirmed">{ta('orders.statusConfirmed')}</SelectItem>
+                      <SelectItem value="packed">{ta('orders.statusPacked')}</SelectItem>
+                      <SelectItem value="shipped">{ta('orders.statusShipped')}</SelectItem>
+                      <SelectItem value="completed">{ta('orders.statusCompleted')}</SelectItem>
+                      <SelectItem value="canceled">{ta('orders.statusCanceled')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </td>
@@ -151,7 +152,7 @@ export default function AdminOrdersPage() {
 
       {orders.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
-          No orders yet
+          {ta('orders.noOrders')}
         </div>
       )}
     </div>

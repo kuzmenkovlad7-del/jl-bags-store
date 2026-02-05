@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase/client'
 import { Package, ShoppingCart, Settings, LogOut } from 'lucide-react'
 import { Toaster } from '@/components/ui/toaster'
+import { ta } from '@/lib/admin-i18n'
 
 export default function AdminLayout({
   children,
@@ -41,7 +42,7 @@ export default function AdminLayout({
   }
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    return <div className="min-h-screen flex items-center justify-center">{ta('common.loading')}</div>
   }
 
   if (pathname === '/admin/login') {
@@ -58,7 +59,7 @@ export default function AdminLayout({
         <div className="container flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
             <Link href="/admin/products" className="font-bold text-lg">
-              JL Admin
+              {ta('nav.title')}
             </Link>
             <div className="flex gap-4">
               <Link
@@ -70,7 +71,7 @@ export default function AdminLayout({
                 }`}
               >
                 <Package className="h-4 w-4" />
-                Products
+                {ta('nav.products')}
               </Link>
               <Link
                 href="/admin/orders"
@@ -81,7 +82,7 @@ export default function AdminLayout({
                 }`}
               >
                 <ShoppingCart className="h-4 w-4" />
-                Orders
+                {ta('nav.orders')}
               </Link>
               <Link
                 href="/admin/settings"
@@ -92,13 +93,13 @@ export default function AdminLayout({
                 }`}
               >
                 <Settings className="h-4 w-4" />
-                Settings
+                {ta('nav.settings')}
               </Link>
             </div>
           </div>
           <Button variant="ghost" size="sm" onClick={handleLogout}>
             <LogOut className="h-4 w-4 mr-2" />
-            Logout
+            {ta('nav.logout')}
           </Button>
         </div>
       </nav>

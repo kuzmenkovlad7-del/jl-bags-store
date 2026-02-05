@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/components/ui/use-toast'
+import { ta } from '@/lib/admin-i18n'
 
 export default function AdminLoginPage() {
   const router = useRouter()
@@ -30,8 +31,8 @@ export default function AdminLoginPage() {
       router.push('/admin/products')
     } catch (error: any) {
       toast({
-        title: 'Login failed',
-        description: error.message,
+        title: ta('login.error'),
+        description: ta('login.errorInvalidCredentials'),
         variant: 'destructive',
       })
     } finally {
@@ -42,10 +43,10 @@ export default function AdminLoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold mb-6 text-center">Admin Login</h1>
+        <h1 className="text-2xl font-bold mb-6 text-center">{ta('login.title')}</h1>
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{ta('login.email')}</Label>
             <Input
               id="email"
               type="email"
@@ -55,7 +56,7 @@ export default function AdminLoginPage() {
             />
           </div>
           <div>
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{ta('login.password')}</Label>
             <Input
               id="password"
               type="password"
@@ -65,7 +66,7 @@ export default function AdminLoginPage() {
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? ta('login.submitting') : ta('login.submit')}
           </Button>
         </form>
       </div>

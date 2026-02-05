@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { supabase } from '@/lib/supabase/client'
 import { Settings } from '@/lib/types'
 import { useToast } from '@/components/ui/use-toast'
+import { ta } from '@/lib/admin-i18n'
 
 export default function AdminSettingsPage() {
   const { toast } = useToast()
@@ -48,11 +49,11 @@ export default function AdminSettingsPage() {
 
       if (error) throw error
 
-      toast({ title: 'Settings updated' })
+      toast({ title: ta('settings.settingsSaved') })
     } catch (error: any) {
       toast({
-        title: 'Error',
-        description: error.message,
+        title: ta('common.error'),
+        description: ta('settings.errorSave'),
         variant: 'destructive',
       })
     } finally {
@@ -62,12 +63,12 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-3xl font-bold mb-6">Settings</h1>
+      <h1 className="text-3xl font-bold mb-6">{ta('settings.title')}</h1>
 
       <div className="bg-white rounded-lg shadow p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="brand_name">Brand Name</Label>
+            <Label htmlFor="brand_name">{ta('settings.brandName')}</Label>
             <Input
               id="brand_name"
               value={formData.brand_name}
@@ -78,7 +79,7 @@ export default function AdminSettingsPage() {
           </div>
 
           <div>
-            <Label htmlFor="phone">Phone</Label>
+            <Label htmlFor="phone">{ta('settings.phone')}</Label>
             <Input
               id="phone"
               value={formData.phone}
@@ -89,7 +90,7 @@ export default function AdminSettingsPage() {
           </div>
 
           <div>
-            <Label htmlFor="instagram_url">Instagram URL</Label>
+            <Label htmlFor="instagram_url">{ta('settings.instagram')}</Label>
             <Input
               id="instagram_url"
               value={formData.instagram_url}
@@ -100,7 +101,7 @@ export default function AdminSettingsPage() {
           </div>
 
           <div>
-            <Label htmlFor="facebook_url">Facebook URL</Label>
+            <Label htmlFor="facebook_url">{ta('settings.facebook')}</Label>
             <Input
               id="facebook_url"
               value={formData.facebook_url}
@@ -111,7 +112,7 @@ export default function AdminSettingsPage() {
           </div>
 
           <div>
-            <Label htmlFor="telegram_url">Telegram URL</Label>
+            <Label htmlFor="telegram_url">{ta('settings.telegram')}</Label>
             <Input
               id="telegram_url"
               value={formData.telegram_url}
@@ -122,7 +123,7 @@ export default function AdminSettingsPage() {
           </div>
 
           <div>
-            <Label htmlFor="default_locale">Default Locale</Label>
+            <Label htmlFor="default_locale">{ta('settings.defaultLocale')}</Label>
             <Input
               id="default_locale"
               value={formData.default_locale}
@@ -133,7 +134,7 @@ export default function AdminSettingsPage() {
           </div>
 
           <Button type="submit" disabled={loading}>
-            {loading ? 'Saving...' : 'Save Settings'}
+            {loading ? ta('settings.saving') : ta('settings.save')}
           </Button>
         </form>
       </div>
