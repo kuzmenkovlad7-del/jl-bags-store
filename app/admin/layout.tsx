@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase/client'
-import { Package, ShoppingCart, Settings, LogOut } from 'lucide-react'
+import { Package, ShoppingCart, LogOut } from 'lucide-react'
 import { Toaster } from '@/components/ui/toaster'
 import { ta } from '@/lib/admin-i18n'
 
@@ -83,17 +83,6 @@ export default function AdminLayout({
               >
                 <ShoppingCart className="h-4 w-4" />
                 {ta('nav.orders')}
-              </Link>
-              <Link
-                href="/admin/settings"
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  pathname === '/admin/settings'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-gray-100'
-                }`}
-              >
-                <Settings className="h-4 w-4" />
-                {ta('nav.settings')}
               </Link>
             </div>
           </div>

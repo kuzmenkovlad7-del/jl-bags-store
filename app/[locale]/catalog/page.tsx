@@ -36,51 +36,67 @@ export default function CatalogPage() {
   async function loadData() {
     setLoading(true)
 
-    // Load categories
-    const { data: categoriesData } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order')
-
-    if (categoriesData) {
-      setCategories(categoriesData)
+    if (!supabase) {
+      console.error('Supabase client not initialized')
+      setLoading(false)
+      return
     }
 
-    // Load products with category filter if selected
-    let query = supabase
-      .from('products')
-      .select(`
-        *,
-        media:product_media(*),
-        categories:product_categories(category:categories(*))
-      `)
-      .eq('is_active', true)
+    try {
+      // Load categories
+      const { data: categoriesData } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order')
 
-    // If category filter is selected, filter by category
-    if (categoryFilter !== 'all') {
-      const { data: productIds } = await supabase
-        .from('product_categories')
-        .select('product_id')
-        .eq('category_id', categoryFilter)
-
-      if (productIds && productIds.length > 0) {
-        const ids = productIds.map(p => p.product_id)
-        query = query.in('id', ids)
-      } else {
-        // No products in this category
-        setProducts([])
-        setLoading(false)
-        return
+      if (categoriesData) {
+        setCategories(categoriesData)
       }
-    }
 
-    const { data } = await query
+      // Load products with category filter if selected
+      let query = supabase
+        .from('products')
+        .select(`
+          *,
+          media:product_media(*),
+          categories:product_categories(category:categories(*))
+        `)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
 
-    if (data) {
-      setProducts(data)
+      // If category filter is selected, filter by category
+      if (categoryFilter !== 'all') {
+        const { data: productIds } = await supabase
+          .from('product_categories')
+          .select('product_id')
+          .eq('category_id', categoryFilter)
+
+        if (productIds && productIds.length > 0) {
+          const ids = productIds.map(p => p.product_id)
+          query = query.in('id', ids)
+        } else {
+          // No products in this category
+          setProducts([])
+          setLoading(false)
+          return
+        }
+      }
+
+      const { data, error } = await query
+
+      if (error) {
+        console.error('Error loading products:', error)
+      }
+
+      if (data) {
+        setProducts(data)
+      }
+    } catch (error) {
+      console.error('Failed to load data:', error)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   function updateSearchParam(key: string, value: string) {
@@ -240,18 +256,24 @@ export default function CatalogPage() {
               className="group"
             >
               <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100 mb-4">
-                {product.media && product.media[0] ? (
-                  <Image
-                    src={product.media[0].url}
-                    alt={product.name_uk}
-                    fill
-                    className="object-cover transition-transform group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
-                    <span className="text-4xl font-bold">{product.code}</span>
-                  </div>
-                )}
+                {(() => {
+                  const primaryMedia = product.media?.find((m) => m.is_primary && m.media_type === 'photo')
+                  const firstMedia = product.media?.find((m) => m.media_type === 'photo')
+                  const displayMedia = primaryMedia || firstMedia
+
+                  return displayMedia ? (
+                    <Image
+                      src={displayMedia.url}
+                      alt={locale === 'ru' && product.name_ru ? product.name_ru : product.name_uk}
+                      fill
+                      className="object-cover transition-transform group-hover:scale-105"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      <span className="text-4xl font-bold">{product.code}</span>
+                    </div>
+                  )
+                })()}
 
                 {/* Product Flags */}
                 <div className="absolute top-2 left-2 flex flex-col gap-1">
