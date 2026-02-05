@@ -19,10 +19,14 @@ export interface Product {
   price_drop: number
   stock_status: StockStatus
   is_active: boolean
+  is_new?: boolean
+  is_hit?: boolean
+  is_sale?: boolean
   sort_order: number
   created_at: string
   updated_at: string
   media?: ProductMedia[]
+  categories?: Category[]
 }
 
 export interface ProductMedia {
@@ -30,7 +34,19 @@ export interface ProductMedia {
   product_id: string
   media_type: MediaType
   url: string
+  storage_path?: string
   position: number
+  is_primary: boolean
+  created_at: string
+}
+
+export interface Category {
+  id: string
+  slug: string
+  name_uk: string
+  name_ru: string | null
+  is_active: boolean
+  sort_order: number
   created_at: string
 }
 
