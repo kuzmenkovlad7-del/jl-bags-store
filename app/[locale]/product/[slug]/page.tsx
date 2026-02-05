@@ -7,6 +7,7 @@ import { Product } from '@/lib/types'
 import { Locale, t } from '@/lib/i18n'
 import { formatPrice } from '@/lib/utils'
 import { ProductClient } from './product-client'
+import { ProductMediaGallery } from './product-media-gallery'
 
 async function getProduct(slug: string): Promise<Product | null> {
   const { data } = await supabase
@@ -14,6 +15,8 @@ async function getProduct(slug: string): Promise<Product | null> {
     .select('*, media:product_media(*)')
     .eq('slug', slug)
     .eq('is_active', true)
+    .order('is_primary', { foreignTable: 'product_media', ascending: false })
+    .order('position', { foreignTable: 'product_media', ascending: true })
     .single()
 
   return data
@@ -77,44 +80,7 @@ export default async function ProductPage({
     <div className="container py-8">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
         {/* Gallery */}
-        <div className="space-y-4">
-          {product.media && product.media.length > 0 ? (
-            <>
-              <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
-                <Image
-                  src={product.media[0].url}
-                  alt={name}
-                  fill
-                  className="object-cover"
-                  priority
-                />
-              </div>
-              {product.media.length > 1 && (
-                <div className="grid grid-cols-4 gap-4">
-                  {product.media.slice(1, 5).map((media) => (
-                    <div
-                      key={media.id}
-                      className="relative aspect-square overflow-hidden rounded-lg bg-gray-100"
-                    >
-                      <Image
-                        src={media.url}
-                        alt={name}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
-              <span className="text-6xl font-bold text-muted-foreground">
-                {product.code}
-              </span>
-            </div>
-          )}
-        </div>
+        <ProductMediaGallery product={product} locale={locale} name={name} />
 
         {/* Product Info */}
         <ProductClient product={product} locale={locale} />

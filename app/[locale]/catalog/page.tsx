@@ -7,34 +7,75 @@ import { Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase/client'
-import { Product, StockStatus } from '@/lib/types'
+import { Product, StockStatus, Category } from '@/lib/types'
 import { Locale, t } from '@/lib/i18n'
 import { formatPrice } from '@/lib/utils'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams, useRouter } from 'next/navigation'
 
 export default function CatalogPage() {
   const params = useParams()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const locale = params.locale as Locale
+
   const [products, setProducts] = useState<Product[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
-  const [search, setSearch] = useState('')
-  const [stockFilter, setStockFilter] = useState<string>('all')
-  const [sortBy, setSortBy] = useState('newest')
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadProducts()
-  }, [])
+  // Get filter values from URL search params
+  const search = searchParams.get('search') || ''
+  const categoryFilter = searchParams.get('category') || 'all'
+  const stockFilter = searchParams.get('stock') || 'all'
+  const flagFilter = searchParams.get('flag') || 'all'
+  const sortBy = searchParams.get('sort') || 'newest'
 
   useEffect(() => {
-    filterAndSortProducts()
-  }, [products, search, stockFilter, sortBy])
+    loadData()
+  }, [categoryFilter])
 
-  async function loadProducts() {
-    const { data } = await supabase
-      .from('products')
-      .select('*, media:product_media(*)')
+  async function loadData() {
+    setLoading(true)
+
+    // Load categories
+    const { data: categoriesData } = await supabase
+      .from('categories')
+      .select('*')
       .eq('is_active', true)
+      .order('sort_order')
+
+    if (categoriesData) {
+      setCategories(categoriesData)
+    }
+
+    // Load products with category filter if selected
+    let query = supabase
+      .from('products')
+      .select(`
+        *,
+        media:product_media(*),
+        categories:product_categories(category:categories(*))
+      `)
+      .eq('is_active', true)
+
+    // If category filter is selected, filter by category
+    if (categoryFilter !== 'all') {
+      const { data: productIds } = await supabase
+        .from('product_categories')
+        .select('product_id')
+        .eq('category_id', categoryFilter)
+
+      if (productIds && productIds.length > 0) {
+        const ids = productIds.map(p => p.product_id)
+        query = query.in('id', ids)
+      } else {
+        // No products in this category
+        setProducts([])
+        setLoading(false)
+        return
+      }
+    }
+
+    const { data } = await query
 
     if (data) {
       setProducts(data)
@@ -42,19 +83,53 @@ export default function CatalogPage() {
     setLoading(false)
   }
 
+  function updateSearchParam(key: string, value: string) {
+    const params = new URLSearchParams(searchParams.toString())
+    if (value === 'all' || value === '' || (key === 'sort' && value === 'newest')) {
+      params.delete(key)
+    } else {
+      params.set(key, value)
+    }
+    router.push(`/${locale}/catalog?${params.toString()}`, { scroll: false })
+  }
+
   function filterAndSortProducts() {
     let filtered = [...products]
 
+    // Search filter (code, name_uk, name_ru)
     if (search) {
-      filtered = filtered.filter((p) =>
-        p.code.toLowerCase().includes(search.toLowerCase())
-      )
+      filtered = filtered.filter((p) => {
+        const searchLower = search.toLowerCase()
+        return (
+          p.code.toLowerCase().includes(searchLower) ||
+          p.name_uk.toLowerCase().includes(searchLower) ||
+          (p.name_ru && p.name_ru.toLowerCase().includes(searchLower))
+        )
+      })
     }
 
+    // Stock filter
     if (stockFilter !== 'all') {
       filtered = filtered.filter((p) => p.stock_status === stockFilter)
     }
 
+    // Flag filter (New/Hits/Sale)
+    if (flagFilter !== 'all') {
+      filtered = filtered.filter((p) => {
+        switch (flagFilter) {
+          case 'new':
+            return p.is_new === true
+          case 'hit':
+            return p.is_hit === true
+          case 'sale':
+            return p.is_sale === true
+          default:
+            return true
+        }
+      })
+    }
+
+    // Sort
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'newest':
@@ -70,9 +145,10 @@ export default function CatalogPage() {
       }
     })
 
-    setFilteredProducts(filtered)
+    return filtered
   }
 
+  const filteredProducts = filterAndSortProducts()
   const stockStatuses: StockStatus[] = ['in_stock', 'low_stock', 'preorder', 'out_of_stock']
 
   return (
@@ -80,42 +156,76 @@ export default function CatalogPage() {
       <h1 className="text-4xl font-bold mb-8">{t(locale, 'catalog.title')}</h1>
 
       {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4 mb-8">
+      <div className="flex flex-col gap-4 mb-8">
+        {/* Search */}
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={t(locale, 'catalog.search_placeholder')}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => updateSearchParam('search', e.target.value)}
             className="pl-10"
           />
         </div>
 
-        <Select value={stockFilter} onValueChange={setStockFilter}>
-          <SelectTrigger className="w-full md:w-48">
-            <SelectValue placeholder={t(locale, 'catalog.filter_stock')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">{t(locale, 'catalog.all_stock')}</SelectItem>
-            {stockStatuses.map((status) => (
-              <SelectItem key={status} value={status}>
-                {t(locale, `catalog.${status}`)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* Filter Row */}
+        <div className="flex flex-col md:flex-row gap-4">
+          {/* Category Filter */}
+          <Select value={categoryFilter} onValueChange={(value) => updateSearchParam('category', value)}>
+            <SelectTrigger className="w-full md:w-48">
+              <SelectValue placeholder={t(locale, 'catalog.filter_category')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t(locale, 'catalog.all_categories')}</SelectItem>
+              {categories.map((category) => (
+                <SelectItem key={category.id} value={category.id}>
+                  {locale === 'ru' && category.name_ru ? category.name_ru : category.name_uk}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-        <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-full md:w-48">
-            <SelectValue placeholder={t(locale, 'catalog.sort_by')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="newest">{t(locale, 'catalog.sort_newest')}</SelectItem>
-            <SelectItem value="code">{t(locale, 'catalog.sort_code')}</SelectItem>
-            <SelectItem value="price_asc">{t(locale, 'catalog.sort_price_asc')}</SelectItem>
-            <SelectItem value="price_desc">{t(locale, 'catalog.sort_price_desc')}</SelectItem>
-          </SelectContent>
-        </Select>
+          {/* Flag Filter */}
+          <Select value={flagFilter} onValueChange={(value) => updateSearchParam('flag', value)}>
+            <SelectTrigger className="w-full md:w-48">
+              <SelectValue placeholder={t(locale, 'catalog.filter_flag')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t(locale, 'catalog.all_flags')}</SelectItem>
+              <SelectItem value="new">{t(locale, 'catalog.flag_new')}</SelectItem>
+              <SelectItem value="hit">{t(locale, 'catalog.flag_hit')}</SelectItem>
+              <SelectItem value="sale">{t(locale, 'catalog.flag_sale')}</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Stock Filter */}
+          <Select value={stockFilter} onValueChange={(value) => updateSearchParam('stock', value)}>
+            <SelectTrigger className="w-full md:w-48">
+              <SelectValue placeholder={t(locale, 'catalog.filter_stock')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">{t(locale, 'catalog.all_stock')}</SelectItem>
+              {stockStatuses.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {t(locale, `catalog.${status}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Sort */}
+          <Select value={sortBy} onValueChange={(value) => updateSearchParam('sort', value)}>
+            <SelectTrigger className="w-full md:w-48">
+              <SelectValue placeholder={t(locale, 'catalog.sort_by')} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">{t(locale, 'catalog.sort_newest')}</SelectItem>
+              <SelectItem value="code">{t(locale, 'catalog.sort_code')}</SelectItem>
+              <SelectItem value="price_asc">{t(locale, 'catalog.sort_price_asc')}</SelectItem>
+              <SelectItem value="price_desc">{t(locale, 'catalog.sort_price_desc')}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Products Grid */}
@@ -142,6 +252,25 @@ export default function CatalogPage() {
                     <span className="text-4xl font-bold">{product.code}</span>
                   </div>
                 )}
+
+                {/* Product Flags */}
+                <div className="absolute top-2 left-2 flex flex-col gap-1">
+                  {product.is_new && (
+                    <span className="bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded">
+                      {t(locale, 'catalog.flag_new')}
+                    </span>
+                  )}
+                  {product.is_hit && (
+                    <span className="bg-orange-500 text-white text-xs font-semibold px-2 py-1 rounded">
+                      {t(locale, 'catalog.flag_hit')}
+                    </span>
+                  )}
+                  {product.is_sale && (
+                    <span className="bg-red-500 text-white text-xs font-semibold px-2 py-1 rounded">
+                      {t(locale, 'catalog.flag_sale')}
+                    </span>
+                  )}
+                </div>
               </div>
               <h3 className="font-semibold mb-1 group-hover:text-primary transition-colors">
                 {locale === 'ru' && product.name_ru ? product.name_ru : product.name_uk}
