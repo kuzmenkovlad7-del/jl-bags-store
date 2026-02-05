@@ -11,6 +11,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion'
+import { HeroSlider } from '@/components/ui/hero-slider'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
@@ -57,6 +58,25 @@ export default function HomePage({
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Hero slides data
+  const heroSlides = [
+    {
+      image: '/home/hero/slide-1.jpg',
+      title: t(locale, 'home.hero_title'),
+      subtitle: t(locale, 'home.hero_subtitle')
+    },
+    {
+      image: '/home/hero/slide-2.jpg',
+      title: locale === 'ru' ? 'Новая коллекция 2026' : 'Нова колекція 2026',
+      subtitle: locale === 'ru' ? 'Откройте для себя уникальные модели' : 'Відкрийте для себе унікальні моделі'
+    },
+    {
+      image: '/home/hero/slide-3.jpg',
+      title: locale === 'ru' ? 'Стиль и качество' : 'Стиль та якість',
+      subtitle: locale === 'ru' ? 'Сумки для особых моментов' : 'Сумки для особливих моментів'
+    }
+  ]
+
   useEffect(() => {
     async function loadData() {
       try {
@@ -82,54 +102,8 @@ export default function HomePage({
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero Section - Premium */}
-      <section className="relative bg-black text-white min-h-[90vh] flex items-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-black via-gray-900 to-black" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.03),transparent_50%)]" />
-
-        <div className="container relative z-10 py-20">
-          <motion.div
-            initial="initial"
-            animate="animate"
-            variants={stagger}
-            className="max-w-5xl"
-          >
-            <motion.div
-              variants={fadeInUp}
-              className="inline-block mb-6 px-4 py-2 border border-white/20 rounded-full text-sm tracking-widest uppercase"
-            >
-              Premium Collection 2026
-            </motion.div>
-
-            <motion.h1
-              variants={fadeInUp}
-              className="text-6xl md:text-8xl lg:text-9xl font-bold mb-8 leading-[0.95] tracking-tight"
-            >
-              {t(locale, 'home.hero_title')}
-            </motion.h1>
-
-            <motion.p
-              variants={fadeInUp}
-              className="text-xl md:text-3xl mb-12 text-gray-300 max-w-2xl leading-relaxed"
-            >
-              {t(locale, 'home.hero_subtitle')}
-            </motion.p>
-
-            <motion.div variants={fadeInUp}>
-              <Button
-                asChild
-                size="lg"
-                className="bg-white text-black hover:bg-gray-100 text-lg px-10 py-7 h-auto rounded-full font-semibold"
-              >
-                <Link href={`/${locale}/catalog`}>
-                  {t(locale, 'home.shop_now')}
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-            </motion.div>
-          </motion.div>
-        </div>
-      </section>
+      {/* Hero Slider */}
+      <HeroSlider slides={heroSlides} autoplayInterval={6000} />
 
       {/* Categories Section - Visual Only (No DB enforcement) */}
       <section className="py-20 md:py-28 bg-gray-50">
