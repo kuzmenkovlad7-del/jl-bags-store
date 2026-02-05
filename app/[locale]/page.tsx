@@ -5,6 +5,12 @@ import Image from 'next/image'
 import { ArrowRight, Shield, Truck, Award, HeadphonesIcon, Backpack, Wallet, ShoppingBag, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
@@ -301,6 +307,61 @@ export default function HomePage({
                 </p>
               </motion.div>
             </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-20 md:py-28 bg-gray-50">
+        <div className="container max-w-4xl">
+          <motion.div
+            initial="initial"
+            whileInView="animate"
+            viewport={{ once: true }}
+            variants={stagger}
+          >
+            <motion.h2
+              className="text-4xl md:text-5xl font-bold text-center mb-16"
+              variants={fadeInUp}
+            >
+              {t(locale, 'wholesale.faq_title')}
+            </motion.h2>
+            <motion.div variants={fadeInUp}>
+              <Accordion type="single" collapsible className="space-y-4">
+                <AccordionItem value="item-1" className="bg-white border-2 border-gray-200 rounded-xl px-6 hover:border-black transition-colors">
+                  <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
+                    {t(locale, 'wholesale.faq_q1')}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-gray-600 pb-5">
+                    {t(locale, 'wholesale.faq_a1')}
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-2" className="bg-white border-2 border-gray-200 rounded-xl px-6 hover:border-black transition-colors">
+                  <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
+                    {t(locale, 'wholesale.faq_q2')}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-gray-600 pb-5">
+                    {t(locale, 'wholesale.faq_a2')}
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-3" className="bg-white border-2 border-gray-200 rounded-xl px-6 hover:border-black transition-colors">
+                  <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
+                    {t(locale, 'wholesale.faq_q3')}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-gray-600 pb-5">
+                    {t(locale, 'wholesale.faq_a3')}
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-4" className="bg-white border-2 border-gray-200 rounded-xl px-6 hover:border-black transition-colors">
+                  <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
+                    {t(locale, 'wholesale.faq_q4')}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-gray-600 pb-5">
+                    {t(locale, 'wholesale.faq_a4')}
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </motion.div>
           </motion.div>
         </div>
       </section>
