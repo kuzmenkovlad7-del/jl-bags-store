@@ -105,7 +105,7 @@ export default function HomePage({
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Slider */}
-      <HeroSlider slides={heroSlides} autoplayInterval={6000} />
+      <HeroSlider slides={heroSlides} />
 
       {/* Categories Section - Visual Only (No DB enforcement) */}
       <section className="py-20 md:py-28 bg-gray-50">
