@@ -1,5 +1,8 @@
 'use client'
 
+import HeroSlider from "@/components/ui/hero-slider";
+import { motion } from "framer-motion";
+
 import Link from 'next/link'
 import Image from 'next/image'
 import { ArrowRight, Shield, Truck, Award, HeadphonesIcon, Backpack, Wallet, ShoppingBag, Package, Tag } from 'lucide-react'
@@ -11,8 +14,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion'
-import { HeroSlider } from '@/components/ui/hero-slider'
-import { motion } from 'framer-motion'
+
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Product } from '@/lib/types'
