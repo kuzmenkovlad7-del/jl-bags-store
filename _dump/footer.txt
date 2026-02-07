@@ -1,0 +1,133 @@
+     1	import Link from 'next/link'
+     2	import Image from 'next/image'
+     3	import { Instagram, Facebook, Send } from 'lucide-react'
+     4	import { Locale, t } from '@/lib/i18n'
+     5	import { Settings } from '@/lib/types'
+     6	
+     7	interface FooterProps {
+     8	  locale: Locale
+     9	  settings: Settings
+    10	}
+    11	
+    12	export function Footer({ locale, settings }: FooterProps) {
+    13	  return (
+    14	    <footer className="bg-white border-t border-gray-200">
+    15	      <div className="container py-16 md:py-20">
+    16	        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8">
+    17	          <div className="md:col-span-1">
+    18	            <div className="flex flex-col gap-6">
+    19	              <div className="flex items-center gap-3">
+    20	                <Image
+    21	                  src="/branding/logo-round.png"
+    22	                  alt="Julia Lebedeva"
+    23	                  width={48}
+    24	                  height={48}
+    25	                  className="h-12 w-12 rounded-full object-cover"
+    26	                />
+    27	                <span className="font-bold text-xl text-black">Julia Lebedeva</span>
+    28	              </div>
+    29	              <p className="text-sm text-gray-600 leading-relaxed">
+    30	                {t(locale, 'footer.about_text')}
+    31	              </p>
+    32	            </div>
+    33	          </div>
+    34	
+    35	          <div>
+    36	            <h3 className="font-semibold text-black mb-5">{t(locale, 'footer.info')}</h3>
+    37	            <nav className="flex flex-col gap-3">
+    38	              <Link
+    39	                href={`/${locale}/catalog`}
+    40	                className="text-sm text-gray-600 hover:text-black transition-colors"
+    41	              >
+    42	                {t(locale, 'nav.catalog')}
+    43	              </Link>
+    44	              <Link
+    45	                href={`/${locale}/delivery-payment`}
+    46	                className="text-sm text-gray-600 hover:text-black transition-colors"
+    47	              >
+    48	                {t(locale, 'nav.delivery')}
+    49	              </Link>
+    50	              <Link
+    51	                href={`/${locale}/wholesale`}
+    52	                className="text-sm text-gray-600 hover:text-black transition-colors"
+    53	              >
+    54	                {t(locale, 'nav.wholesale')}
+    55	              </Link>
+    56	            </nav>
+    57	          </div>
+    58	
+    59	          <div>
+    60	            <h3 className="font-semibold text-black mb-5">{t(locale, 'footer.legal')}</h3>
+    61	            <nav className="flex flex-col gap-3">
+    62	              <Link
+    63	                href={`/${locale}/privacy`}
+    64	                className="text-sm text-gray-600 hover:text-black transition-colors"
+    65	              >
+    66	                {t(locale, 'footer.privacy')}
+    67	              </Link>
+    68	              <Link
+    69	                href={`/${locale}/terms`}
+    70	                className="text-sm text-gray-600 hover:text-black transition-colors"
+    71	              >
+    72	                {t(locale, 'footer.terms')}
+    73	              </Link>
+    74	              <Link
+    75	                href={`/${locale}/contacts`}
+    76	                className="text-sm text-gray-600 hover:text-black transition-colors"
+    77	              >
+    78	                {t(locale, 'nav.contacts')}
+    79	              </Link>
+    80	            </nav>
+    81	          </div>
+    82	
+    83	          <div>
+    84	            <h3 className="font-semibold text-black mb-5">{t(locale, 'footer.contacts')}</h3>
+    85	            <div className="flex flex-col gap-4">
+    86	              <a
+    87	                href={`tel:${settings.phone}`}
+    88	                className="text-sm text-gray-600 hover:text-black transition-colors"
+    89	              >
+    90	                {settings.phone}
+    91	              </a>
+    92	              <div className="flex gap-3">
+    93	                <a
+    94	                  href={settings.instagram_url}
+    95	                  target="_blank"
+    96	                  rel="noopener noreferrer"
+    97	                  className="w-10 h-10 rounded-full border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:text-black hover:border-black transition-all"
+    98	                  aria-label="Instagram"
+    99	                >
+   100	                  <Instagram className="h-5 w-5" />
+   101	                </a>
+   102	                <a
+   103	                  href={settings.facebook_url}
+   104	                  target="_blank"
+   105	                  rel="noopener noreferrer"
+   106	                  className="w-10 h-10 rounded-full border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:text-black hover:border-black transition-all"
+   107	                  aria-label="Facebook"
+   108	                >
+   109	                  <Facebook className="h-5 w-5" />
+   110	                </a>
+   111	                <a
+   112	                  href={settings.telegram_url}
+   113	                  target="_blank"
+   114	                  rel="noopener noreferrer"
+   115	                  className="w-10 h-10 rounded-full border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:text-black hover:border-black transition-all"
+   116	                  aria-label="Telegram"
+   117	                >
+   118	                  <Send className="h-5 w-5" />
+   119	                </a>
+   120	              </div>
+   121	            </div>
+   122	          </div>
+   123	        </div>
+   124	
+   125	        <div className="mt-12 pt-8 border-t border-gray-200">
+   126	          <p className="text-center text-sm text-gray-600">
+   127	            &copy; {new Date().getFullYear()} Julia Lebedeva. {t(locale, 'footer.rights')}
+   128	          </p>
+   129	        </div>
+   130	      </div>
+   131	    </footer>
+   132	  )
+   133	}

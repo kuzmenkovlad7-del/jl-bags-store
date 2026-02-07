@@ -1,112 +1,146 @@
 'use client'
 
-import React from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { FullScreenScrollFX, FullScreenFXAPI } from '@/components/ui/full-screen-scroll-fx'
+import FullScreenScrollFX from '@/components/ui/full-screen-scroll-fx'
 
-export type HeroSlide = {
-  id?: string
-  image: string
-  title: string
+type HeroSlideInput = {
+  image?: string
+  title?: string
   subtitle?: string
-  badge?: string
   ctaText?: string
   ctaHref?: string
+  leftLabel?: string
+  rightLabel?: string
 }
 
-export type HeroSliderProps = {
-  slides?: HeroSlide[]
+type HeroSlide = {
+  id: string
+  background: string
+  title: string
+  subtitle: string
+  ctaText: string
+  ctaHref: string
+  leftLabel: string
+  rightLabel: string
+}
+
+interface HeroSliderProps {
+  slides?: HeroSlideInput[]
+  locale?: string
   className?: string
-  autoplayInterval?: number
 }
 
-const fallbackSlides: HeroSlide[] = [
-  {
-    id: '1',
-    image: 'https://images.unsplash.com/photo-1591348122449-8d3d3f6f88f7?auto=format&fit=crop&w=1800&q=80',
-    title: 'ЖІНОЧІ СУМКИ',
-    subtitle: 'Преміальна якість від JL',
-    badge: '01',
-    ctaText: 'До каталогу',
-    ctaHref: '/uk/catalog',
-  },
-  {
-    id: '2',
-    image: 'https://images.unsplash.com/photo-1614179689702-355944cd0918?auto=format&fit=crop&w=1800&q=80',
-    title: 'НОВА КОЛЕКЦІЯ',
-    subtitle: 'Відкрийте для себе унікальні моделі',
-    badge: '02',
-    ctaText: 'Дивитися новинки',
-    ctaHref: '/uk/catalog',
-  },
-  {
-    id: '3',
-    image: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=1800&q=80',
-    title: 'СТИЛЬ ТА ЯКІСТЬ',
-    subtitle: 'Сумки для особливих моментів',
-    badge: '03',
-    ctaText: 'Обрати модель',
-    ctaHref: '/uk/catalog',
-  },
+const fallbackBackgrounds = [
+  '/home/hero/slide-1.jpg',
+  '/home/hero/slide-2.jpg',
+  '/home/hero/slide-3.jpg',
 ]
 
-export default function HeroSlider({ slides = fallbackSlides, className, autoplayInterval }: HeroSliderProps) {
-  const safeSlides = slides.length ? slides : fallbackSlides
-  const [active, setActive] = React.useState(0)
-  const apiRef = React.useRef<FullScreenFXAPI>(null)
+function defaults(localeKey: string): HeroSlide[] {
+  const uk = localeKey !== 'ru'
 
-  const current = safeSlides[Math.min(active, safeSlides.length - 1)] ?? safeSlides[0]
+  return [
+    {
+      id: '1',
+      background: fallbackBackgrounds[0],
+      title: uk ? 'СТИЛЬ ТА ЯКІСТЬ' : 'СТИЛЬ И КАЧЕСТВО',
+      subtitle: uk ? 'Сумки для особливих моментів' : 'Сумки для особых моментов',
+      ctaText: uk ? 'Обрати модель' : 'Выбрать модель',
+      ctaHref: `/${localeKey}/catalog`,
+      leftLabel: uk ? 'ПРЕМІУМ\nКОМФОРТ\n• НОВИЙ' : 'ПРЕМИУМ\nКОМФОРТ\n• НОВЫЙ',
+      rightLabel: uk ? 'КОЛЕКЦІЯ\nСЕЗОН\n•' : 'КОЛЛЕКЦИЯ\nСЕЗОН\n•',
+    },
+    {
+      id: '2',
+      background: fallbackBackgrounds[1],
+      title: uk ? 'НОВА КОЛЕКЦІЯ 2026' : 'НОВАЯ КОЛЛЕКЦИЯ 2026',
+      subtitle: uk ? 'Відкрийте для себе унікальні моделі' : 'Откройте для себя уникальные модели',
+      ctaText: uk ? 'Дивитися новинки' : 'Смотреть новинки',
+      ctaHref: `/${localeKey}/catalog`,
+      leftLabel: uk ? 'ПРЕМІУМ\nКОМФОРТ\n• НОВИЙ' : 'ПРЕМИУМ\nКОМФОРТ\n• НОВЫЙ',
+      rightLabel: uk ? 'КОЛЕКЦІЯ\nСЕЗОН\n•' : 'КОЛЛЕКЦИЯ\nСЕЗОН\n•',
+    },
+    {
+      id: '3',
+      background: fallbackBackgrounds[2],
+      title: uk ? 'URBAN ELEGANCE' : 'URBAN ELEGANCE',
+      subtitle: uk ? 'Колекція для міського ритму' : 'Коллекция для городского ритма',
+      ctaText: uk ? 'Перейти в каталог' : 'Перейти в каталог',
+      ctaHref: `/${localeKey}/catalog`,
+      leftLabel: uk ? 'SIGNATURE\nURBAN\n• ELEGANCE' : 'SIGNATURE\nURBAN\n• ELEGANCE',
+      rightLabel: uk ? 'COLLECTION\nMOTION\n• ESSENTIAL' : 'COLLECTION\nMOTION\n• ESSENTIAL',
+    },
+  ]
+}
 
-  const sections = safeSlides.map((s, i) => ({
-    id: s.id ?? String(i + 1),
-    background: s.image,
-    leftLabel: `• ${String(i + 1).padStart(2, '0')}`,
-    title: s.title,
-    rightLabel: undefined as React.ReactNode,
-  }))
+export default function HeroSlider({ slides = [], locale = 'uk', className = '' }: HeroSliderProps) {
+  const localeKey = locale === 'ru' ? 'ru' : 'uk'
+  const [active, setActive] = useState(0)
 
-  React.useEffect(() => {
-    if (!autoplayInterval || autoplayInterval <= 0) return
-    const timer = setInterval(() => {
-      const next = (apiRef.current?.getIndex() ?? 0) + 1
-      if (next >= safeSlides.length) apiRef.current?.goTo(0)
-      else apiRef.current?.goTo(next)
-    }, autoplayInterval)
-    return () => clearInterval(timer)
-  }, [autoplayInterval, safeSlides.length])
+  const normalized = useMemo(() => {
+    const base = defaults(localeKey)
+
+    return base.map((d, i) => {
+      const s = slides[i]
+      return {
+        ...d,
+        background: s?.image || d.background,
+        title: s?.title || d.title,
+        subtitle: s?.subtitle || d.subtitle,
+        ctaText: s?.ctaText || d.ctaText,
+        ctaHref: s?.ctaHref || d.ctaHref,
+        leftLabel: (s?.leftLabel && s.leftLabel.trim()) || d.leftLabel,
+        rightLabel: (s?.rightLabel && s.rightLabel.trim()) || d.rightLabel,
+      }
+    })
+  }, [slides, localeKey])
+
+  const sections = useMemo(
+    () =>
+      normalized.map((s) => ({
+        id: s.id,
+        background: s.background,
+        title: s.title,
+        leftLabel: s.leftLabel,
+        rightLabel: s.rightLabel,
+      })),
+    [normalized]
+  )
+
+  const safeIndex = Math.max(0, Math.min(active, normalized.length - 1))
+  const current = normalized[safeIndex]
+  const rootClass = `${className} jl-hero-active-${safeIndex}`.trim()
 
   return (
-    <section className={className}>
+    <section className={rootClass}>
       <FullScreenScrollFX
-        apiRef={apiRef}
-        sections={sections}
+        sections={sections as any}
         onIndexChange={setActive}
         header={
           <>
-            <div>Julia Lebedeva</div>
-            <div>Collection</div>
+            <div>JULIA LEBEDEVA</div>
+            <div>COLLECTION</div>
           </>
         }
         footer={
-          <div className='flex flex-col items-center gap-5 normal-case'>
-            {current?.subtitle ? (
-              <p className='max-w-3xl px-4 text-center text-white/90 text-base md:text-2xl'>
-                {current.subtitle}
-              </p>
-            ) : null}
+          <div className="flex flex-col items-center gap-4 normal-case">
+            <p className="max-w-3xl px-4 text-center text-white/90 text-base md:text-2xl normal-case">
+              {current?.subtitle}
+            </p>
 
             <Link
-              href={current?.ctaHref || '/uk/catalog'}
-              className='inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 text-black text-sm md:text-base font-semibold hover:bg-white/90 transition'
+              href={current?.ctaHref || `/${localeKey}/catalog`}
+              className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 text-black text-sm md:text-base font-semibold hover:bg-white/90 transition"
             >
-              {current?.ctaText || 'До каталогу'}
-              <ArrowRight className='h-4 w-4' />
+              {current?.ctaText || (localeKey === 'ru' ? 'Перейти в каталог' : 'Перейти в каталог')}
+              <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         }
         showProgress
-        durations={{ change: 0.7, snap: 800 }}
+        durations={{ change: 0.72, snap: 900 }}
         colors={{
           text: 'rgba(255,255,255,0.96)',
           overlay: 'rgba(0,0,0,0.45)',

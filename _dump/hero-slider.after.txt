@@ -1,0 +1,153 @@
+     1	'use client'
+     2	
+     3	import { useMemo, useState } from 'react'
+     4	import Link from 'next/link'
+     5	import { ArrowRight } from 'lucide-react'
+     6	import FullScreenScrollFX from '@/components/ui/full-screen-scroll-fx'
+     7	
+     8	type HeroSlideInput = {
+     9	  image?: string
+    10	  title?: string
+    11	  subtitle?: string
+    12	  ctaText?: string
+    13	  ctaHref?: string
+    14	  leftLabel?: string
+    15	  rightLabel?: string
+    16	}
+    17	
+    18	type HeroSlide = {
+    19	  id: string
+    20	  background: string
+    21	  title: string
+    22	  subtitle: string
+    23	  ctaText: string
+    24	  ctaHref: string
+    25	  leftLabel: string
+    26	  rightLabel: string
+    27	}
+    28	
+    29	interface HeroSliderProps {
+    30	  slides?: HeroSlideInput[]
+    31	  locale?: string
+    32	  className?: string
+    33	}
+    34	
+    35	const fallbackBackgrounds = [
+    36	  '/home/hero/slide-1.jpg',
+    37	  '/home/hero/slide-2.jpg',
+    38	  '/home/hero/slide-3.jpg',
+    39	]
+    40	
+    41	function defaults(localeKey: string): HeroSlide[] {
+    42	  const uk = localeKey !== 'ru'
+    43	
+    44	  return [
+    45	    {
+    46	      id: '1',
+    47	      background: fallbackBackgrounds[0],
+    48	      title: uk ? 'СТИЛЬ ТА ЯКІСТЬ' : 'СТИЛЬ И КАЧЕСТВО',
+    49	      subtitle: uk ? 'Сумки для особливих моментів' : 'Сумки для особых моментов',
+    50	      ctaText: uk ? 'Обрати модель' : 'Выбрать модель',
+    51	      ctaHref: `/${localeKey}/catalog`,
+    52	      leftLabel: uk ? 'ПРЕМІУМ\nКОМФОРТ\n• НОВИЙ' : 'ПРЕМИУМ\nКОМФОРТ\n• НОВЫЙ',
+    53	      rightLabel: uk ? 'КОЛЕКЦІЯ\nСЕЗОН\n•' : 'КОЛЛЕКЦИЯ\nСЕЗОН\n•',
+    54	    },
+    55	    {
+    56	      id: '2',
+    57	      background: fallbackBackgrounds[1],
+    58	      title: uk ? 'НОВА КОЛЕКЦІЯ 2026' : 'НОВАЯ КОЛЛЕКЦИЯ 2026',
+    59	      subtitle: uk ? 'Відкрийте для себе унікальні моделі' : 'Откройте для себя уникальные модели',
+    60	      ctaText: uk ? 'Дивитися новинки' : 'Смотреть новинки',
+    61	      ctaHref: `/${localeKey}/catalog`,
+    62	      leftLabel: uk ? 'ПРЕМІУМ\nКОМФОРТ\n• НОВИЙ' : 'ПРЕМИУМ\nКОМФОРТ\n• НОВЫЙ',
+    63	      rightLabel: uk ? 'КОЛЕКЦІЯ\nСЕЗОН\n•' : 'КОЛЛЕКЦИЯ\nСЕЗОН\n•',
+    64	    },
+    65	    {
+    66	      id: '3',
+    67	      background: fallbackBackgrounds[2],
+    68	      title: uk ? 'URBAN ELEGANCE' : 'URBAN ELEGANCE',
+    69	      subtitle: uk ? 'Колекція для міського ритму' : 'Коллекция для городского ритма',
+    70	      ctaText: uk ? 'Перейти в каталог' : 'Перейти в каталог',
+    71	      ctaHref: `/${localeKey}/catalog`,
+    72	      leftLabel: uk ? 'SIGNATURE\nURBAN\n• ELEGANCE' : 'SIGNATURE\nURBAN\n• ELEGANCE',
+    73	      rightLabel: uk ? 'COLLECTION\nMOTION\n• ESSENTIAL' : 'COLLECTION\nMOTION\n• ESSENTIAL',
+    74	    },
+    75	  ]
+    76	}
+    77	
+    78	export default function HeroSlider({ slides = [], locale = 'uk', className = '' }: HeroSliderProps) {
+    79	  const localeKey = locale === 'ru' ? 'ru' : 'uk'
+    80	  const [active, setActive] = useState(0)
+    81	
+    82	  const normalized = useMemo(() => {
+    83	    const base = defaults(localeKey)
+    84	
+    85	    return base.map((d, i) => {
+    86	      const s = slides[i]
+    87	      return {
+    88	        ...d,
+    89	        background: s?.image || d.background,
+    90	        title: s?.title || d.title,
+    91	        subtitle: s?.subtitle || d.subtitle,
+    92	        ctaText: s?.ctaText || d.ctaText,
+    93	        ctaHref: s?.ctaHref || d.ctaHref,
+    94	        leftLabel: (s?.leftLabel && s.leftLabel.trim()) || d.leftLabel,
+    95	        rightLabel: (s?.rightLabel && s.rightLabel.trim()) || d.rightLabel,
+    96	      }
+    97	    })
+    98	  }, [slides, localeKey])
+    99	
+   100	  const sections = useMemo(
+   101	    () =>
+   102	      normalized.map((s) => ({
+   103	        id: s.id,
+   104	        background: s.background,
+   105	        title: s.title,
+   106	        leftLabel: s.leftLabel,
+   107	        rightLabel: s.rightLabel,
+   108	      })),
+   109	    [normalized]
+   110	  )
+   111	
+   112	  const safeIndex = Math.max(0, Math.min(active, normalized.length - 1))
+   113	  const current = normalized[safeIndex]
+   114	  const rootClass = `${className} jl-hero-active-${safeIndex}`.trim()
+   115	
+   116	  return (
+   117	    <section className={rootClass}>
+   118	      <FullScreenScrollFX
+   119	        sections={sections as any}
+   120	        onIndexChange={setActive}
+   121	        header={
+   122	          <>
+   123	            <div>JULIA LEBEDEVA</div>
+   124	            <div>COLLECTION</div>
+   125	          </>
+   126	        }
+   127	        footer={
+   128	          <div className="flex flex-col items-center gap-4 normal-case">
+   129	            <p className="max-w-3xl px-4 text-center text-white/90 text-base md:text-2xl normal-case">
+   130	              {current?.subtitle}
+   131	            </p>
+   132	
+   133	            <Link
+   134	              href={current?.ctaHref || `/${localeKey}/catalog`}
+   135	              className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 text-black text-sm md:text-base font-semibold hover:bg-white/90 transition"
+   136	            >
+   137	              {current?.ctaText || (localeKey === 'ru' ? 'Перейти в каталог' : 'Перейти в каталог')}
+   138	              <ArrowRight className="h-4 w-4" />
+   139	            </Link>
+   140	          </div>
+   141	        }
+   142	        showProgress
+   143	        durations={{ change: 0.72, snap: 900 }}
+   144	        colors={{
+   145	          text: 'rgba(255,255,255,0.96)',
+   146	          overlay: 'rgba(0,0,0,0.45)',
+   147	          pageBg: '#000000',
+   148	          stageBg: '#000000',
+   149	        }}
+   150	      />
+   151	    </section>
+   152	  )
+   153	}

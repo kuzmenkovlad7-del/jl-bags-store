@@ -105,7 +105,7 @@ export default function HomePage({
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Slider */}
-      <HeroSlider locale={locale} slides={heroSlides} />
+      <HeroSlider slides={heroSlides} />
 
       {/* Categories Section - Visual Only (No DB enforcement) */}
       <section className="py-20 md:py-28 bg-gray-50">

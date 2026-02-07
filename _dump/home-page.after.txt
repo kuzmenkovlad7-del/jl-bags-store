@@ -1,0 +1,401 @@
+     1	'use client'
+     2	
+     3	import HeroSlider from "@/components/ui/hero-slider";
+     4	import { motion } from "framer-motion";
+     5	
+     6	import Link from 'next/link'
+     7	import Image from 'next/image'
+     8	import { ArrowRight, Shield, Truck, Award, HeadphonesIcon, Backpack, Wallet, ShoppingBag, Package, Tag } from 'lucide-react'
+     9	import { Button } from '@/components/ui/button'
+    10	import { Badge } from '@/components/ui/badge'
+    11	import {
+    12	  Accordion,
+    13	  AccordionContent,
+    14	  AccordionItem,
+    15	  AccordionTrigger,
+    16	} from '@/components/ui/accordion'
+    17	
+    18	import { useEffect, useState } from 'react'
+    19	import { supabase } from '@/lib/supabase/client'
+    20	import { Product } from '@/lib/types'
+    21	import { Locale, t } from '@/lib/i18n'
+    22	import { formatPrice } from '@/lib/utils'
+    23	
+    24	// Visual categories (no DB enforcement in this quick launch)
+    25	const visualCategories = [
+    26	  { slug: 'ryukzak_ekoshkira', name_uk: 'Рюкзак екошкіра', name_ru: 'Рюкзак экокожа', icon: Backpack },
+    27	  { slug: 'ryukzak_tekstil', name_uk: 'Рюкзак текстиль', name_ru: 'Рюкзак текстиль', icon: Backpack },
+    28	  { slug: 'shkilnyi_ryukzak', name_uk: 'Шкільний рюкзак', name_ru: 'Школьный рюкзак', icon: Backpack },
+    29	  { slug: 'klatch_krosbodi', name_uk: 'Клатч кросбоді', name_ru: 'Клатч кроссбоди', icon: ShoppingBag },
+    30	  { slug: 'sumka_ekoshkira', name_uk: 'Сумка екошкіра', name_ru: 'Сумка экокожа', icon: ShoppingBag },
+    31	  { slug: 'sumka_stobana', name_uk: 'Сумка стьобана', name_ru: 'Сумка стеганая', icon: ShoppingBag },
+    32	  { slug: 'bananka', name_uk: 'Бананка', name_ru: 'Бананка', icon: Package },
+    33	  { slug: 'sumka_tekstil', name_uk: 'Сумка текстиль', name_ru: 'Сумка текстиль', icon: ShoppingBag },
+    34	  { slug: 'rozprodazh', name_uk: 'Розпродаж', name_ru: 'Распродажа', icon: Tag },
+    35	  { slug: 'cholovicha_sumka', name_uk: 'Чоловіча сумка', name_ru: 'Мужская сумка', icon: ShoppingBag },
+    36	  { slug: 'gamanets_zhinochyi', name_uk: 'Гаманець жіночий', name_ru: 'Кошелек женский', icon: Wallet },
+    37	  { slug: 'gamanets_cholovichyi', name_uk: 'Гаманець чоловічий', name_ru: 'Кошелек мужской', icon: Wallet },
+    38	]
+    39	
+    40	const fadeInUp = {
+    41	  initial: { opacity: 0, y: 20 },
+    42	  animate: { opacity: 1, y: 0 },
+    43	  transition: { duration: 0.5 }
+    44	}
+    45	
+    46	const stagger = {
+    47	  animate: {
+    48	    transition: {
+    49	      staggerChildren: 0.1
+    50	    }
+    51	  }
+    52	}
+    53	
+    54	export default function HomePage({
+    55	  params,
+    56	}: {
+    57	  params: { locale: string }
+    58	}) {
+    59	  const locale = params.locale as Locale
+    60	  const [products, setProducts] = useState<Product[]>([])
+    61	  const [loading, setLoading] = useState(true)
+    62	
+    63	  // Hero slides data
+    64	  const heroSlides = [
+    65	    {
+    66	      image: '/home/hero/slide-1.jpg',
+    67	      title: t(locale, 'home.hero_title'),
+    68	      subtitle: t(locale, 'home.hero_subtitle')
+    69	    },
+    70	    {
+    71	      image: '/home/hero/slide-2.jpg',
+    72	      title: locale === 'ru' ? 'Новая коллекция 2026' : 'Нова колекція 2026',
+    73	      subtitle: locale === 'ru' ? 'Откройте для себя уникальные модели' : 'Відкрийте для себе унікальні моделі'
+    74	    },
+    75	    {
+    76	      image: '/home/hero/slide-3.jpg',
+    77	      title: locale === 'ru' ? 'Стиль и качество' : 'Стиль та якість',
+    78	      subtitle: locale === 'ru' ? 'Сумки для особых моментов' : 'Сумки для особливих моментів'
+    79	    }
+    80	  ]
+    81	
+    82	  useEffect(() => {
+    83	    async function loadData() {
+    84	      try {
+    85	        // Load featured products (new and hit items)
+    86	        const { data: productsData } = await supabase
+    87	          .from('products')
+    88	          .select('*, media:product_media(*)')
+    89	          .eq('is_active', true)
+    90	          .or('is_new.eq.true,is_hit.eq.true')
+    91	          .order('created_at', { ascending: false })
+    92	          .limit(6)
+    93	
+    94	        setProducts(productsData || [])
+    95	      } catch (error) {
+    96	        console.error('Error loading data:', error)
+    97	      } finally {
+    98	        setLoading(false)
+    99	      }
+   100	    }
+   101	
+   102	    loadData()
+   103	  }, [])
+   104	
+   105	  return (
+   106	    <div className="min-h-screen bg-white">
+   107	      {/* Hero Slider */}
+   108	      <HeroSlider locale={locale} slides={heroSlides} />
+   109	
+   110	      {/* Categories Section - Visual Only (No DB enforcement) */}
+   111	      <section className="py-20 md:py-28 bg-gray-50">
+   112	        <div className="container">
+   113	          <motion.div
+   114	            initial="initial"
+   115	            whileInView="animate"
+   116	            viewport={{ once: true }}
+   117	            variants={stagger}
+   118	          >
+   119	            <motion.h2
+   120	              className="text-4xl md:text-5xl font-bold text-center mb-16"
+   121	              variants={fadeInUp}
+   122	            >
+   123	              {t(locale, 'home.categories_title')}
+   124	            </motion.h2>
+   125	            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-6">
+   126	              {visualCategories.map((category) => {
+   127	                const Icon = category.icon
+   128	                return (
+   129	                  <motion.div key={category.slug} variants={fadeInUp}>
+   130	                    <Link
+   131	                      href={`/${locale}/catalog`}
+   132	                      className="group block"
+   133	                    >
+   134	                      <div className="relative aspect-square bg-white border-2 border-gray-200 rounded-2xl overflow-hidden transition-all duration-300 hover:border-black hover:shadow-xl">
+   135	                        <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center gap-3">
+   136	                          <div className="transition-transform group-hover:scale-110 duration-300">
+   137	                            <Icon className="h-10 w-10 md:h-12 md:w-12 text-black" strokeWidth={1.5} />
+   138	                          </div>
+   139	                          <h3 className="text-xs md:text-sm font-semibold text-black leading-tight">
+   140	                            {locale === 'ru' ? category.name_ru : category.name_uk}
+   141	                          </h3>
+   142	                        </div>
+   143	                      </div>
+   144	                    </Link>
+   145	                  </motion.div>
+   146	                )
+   147	              })}
+   148	            </div>
+   149	          </motion.div>
+   150	        </div>
+   151	      </section>
+   152	
+   153	      {/* Featured Products Section - New Arrivals & Hits */}
+   154	      <section className="py-20 md:py-28 bg-white">
+   155	        <div className="container">
+   156	          <motion.div
+   157	            initial="initial"
+   158	            whileInView="animate"
+   159	            viewport={{ once: true }}
+   160	            variants={stagger}
+   161	          >
+   162	            <div className="flex items-center justify-between mb-16">
+   163	              <motion.h2
+   164	                className="text-4xl md:text-5xl font-bold"
+   165	                variants={fadeInUp}
+   166	              >
+   167	                {t(locale, 'home.featured_products')}
+   168	              </motion.h2>
+   169	              <motion.div variants={fadeInUp}>
+   170	                <Button asChild variant="outline" className="hidden md:inline-flex border-2">
+   171	                  <Link href={`/${locale}/catalog`}>
+   172	                    {t(locale, 'home.view_all')}
+   173	                    <ArrowRight className="ml-2 h-4 w-4" />
+   174	                  </Link>
+   175	                </Button>
+   176	              </motion.div>
+   177	            </div>
+   178	
+   179	            {loading ? (
+   180	              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+   181	                {[1, 2, 3].map((i) => (
+   182	                  <div key={i} className="aspect-[3/4] bg-gray-100 rounded-2xl animate-pulse" />
+   183	                ))}
+   184	              </div>
+   185	            ) : products.length > 0 ? (
+   186	              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+   187	                {products.map((product) => {
+   188	                  const primaryMedia = product.media?.find((m) => m.is_primary && m.media_type === 'photo')
+   189	                  const firstMedia = product.media?.find((m) => m.media_type === 'photo')
+   190	                  const displayMedia = primaryMedia || firstMedia
+   191	
+   192	                  return (
+   193	                    <motion.div key={product.id} variants={fadeInUp}>
+   194	                      <Link
+   195	                        href={`/${locale}/product/${product.slug}`}
+   196	                        className="group block"
+   197	                      >
+   198	                        <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-gray-100 mb-6 border-2 border-transparent group-hover:border-black transition-all duration-300">
+   199	                          {displayMedia ? (
+   200	                            <Image
+   201	                              src={displayMedia.url}
+   202	                              alt={product.name_uk}
+   203	                              fill
+   204	                              className="object-cover transition-transform group-hover:scale-105 duration-500"
+   205	                            />
+   206	                          ) : (
+   207	                            <div className="flex items-center justify-center h-full text-gray-400">
+   208	                              <span className="text-6xl font-bold">{product.code}</span>
+   209	                            </div>
+   210	                          )}
+   211	                          <div className="absolute top-4 left-4 flex flex-col gap-2">
+   212	                            {product.is_new && (
+   213	                              <Badge className="bg-black text-white border-0">
+   214	                                {t(locale, 'catalog.flag_new')}
+   215	                              </Badge>
+   216	                            )}
+   217	                            {product.is_hit && (
+   218	                              <Badge className="bg-white text-black border-2 border-black">
+   219	                                {t(locale, 'catalog.flag_hit')}
+   220	                              </Badge>
+   221	                            )}
+   222	                          </div>
+   223	                        </div>
+   224	                        <h3 className="text-lg font-semibold mb-2 group-hover:underline">
+   225	                          {locale === 'ru' && product.name_ru ? product.name_ru : product.name_uk}
+   226	                        </h3>
+   227	                        <p className="text-sm text-gray-500 mb-2">
+   228	                          {t(locale, 'product.code')}: {product.code}
+   229	                        </p>
+   230	                        <p className="text-xl font-bold">{formatPrice(product.price_retail)}</p>
+   231	                      </Link>
+   232	                    </motion.div>
+   233	                  )
+   234	                })}
+   235	              </div>
+   236	            ) : (
+   237	              <div className="text-center py-16 text-gray-500">
+   238	                <p className="text-lg">{locale === 'ru' ? 'Товары скоро появятся' : 'Товари скоро з\'являться'}</p>
+   239	              </div>
+   240	            )}
+   241	
+   242	            <motion.div variants={fadeInUp} className="mt-12 text-center md:hidden">
+   243	              <Button asChild variant="outline" className="border-2 w-full sm:w-auto">
+   244	                <Link href={`/${locale}/catalog`}>
+   245	                  {t(locale, 'home.view_all')}
+   246	                  <ArrowRight className="ml-2 h-4 w-4" />
+   247	                </Link>
+   248	              </Button>
+   249	            </motion.div>
+   250	          </motion.div>
+   251	        </div>
+   252	      </section>
+   253	
+   254	      {/* Benefits Section */}
+   255	      <section className="py-20 md:py-28 bg-black text-white">
+   256	        <div className="container">
+   257	          <motion.div
+   258	            initial="initial"
+   259	            whileInView="animate"
+   260	            viewport={{ once: true }}
+   261	            variants={stagger}
+   262	          >
+   263	            <motion.h2
+   264	              className="text-4xl md:text-5xl font-bold text-center mb-16"
+   265	              variants={fadeInUp}
+   266	            >
+   267	              {t(locale, 'home.benefits_title')}
+   268	            </motion.h2>
+   269	            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 md:gap-10">
+   270	              <motion.div className="text-center" variants={fadeInUp}>
+   271	                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/10 border-2 border-white/20 mb-6 transition-transform hover:scale-110 duration-300">
+   272	                  <Award className="h-10 w-10" strokeWidth={1.5} />
+   273	                </div>
+   274	                <h3 className="text-xl font-semibold mb-3">{t(locale, 'home.benefit_1_title')}</h3>
+   275	                <p className="text-gray-400 leading-relaxed">
+   276	                  {t(locale, 'home.benefit_1_desc')}
+   277	                </p>
+   278	              </motion.div>
+   279	              <motion.div className="text-center" variants={fadeInUp}>
+   280	                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/10 border-2 border-white/20 mb-6 transition-transform hover:scale-110 duration-300">
+   281	                  <Truck className="h-10 w-10" strokeWidth={1.5} />
+   282	                </div>
+   283	                <h3 className="text-xl font-semibold mb-3">{t(locale, 'home.benefit_2_title')}</h3>
+   284	                <p className="text-gray-400 leading-relaxed">
+   285	                  {t(locale, 'home.benefit_2_desc')}
+   286	                </p>
+   287	              </motion.div>
+   288	              <motion.div className="text-center" variants={fadeInUp}>
+   289	                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/10 border-2 border-white/20 mb-6 transition-transform hover:scale-110 duration-300">
+   290	                  <Shield className="h-10 w-10" strokeWidth={1.5} />
+   291	                </div>
+   292	                <h3 className="text-xl font-semibold mb-3">{t(locale, 'home.benefit_3_title')}</h3>
+   293	                <p className="text-gray-400 leading-relaxed">
+   294	                  {t(locale, 'home.benefit_3_desc')}
+   295	                </p>
+   296	              </motion.div>
+   297	              <motion.div className="text-center" variants={fadeInUp}>
+   298	                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/10 border-2 border-white/20 mb-6 transition-transform hover:scale-110 duration-300">
+   299	                  <HeadphonesIcon className="h-10 w-10" strokeWidth={1.5} />
+   300	                </div>
+   301	                <h3 className="text-xl font-semibold mb-3">{t(locale, 'home.benefit_4_title')}</h3>
+   302	                <p className="text-gray-400 leading-relaxed">
+   303	                  {t(locale, 'home.benefit_4_desc')}
+   304	                </p>
+   305	              </motion.div>
+   306	            </div>
+   307	          </motion.div>
+   308	        </div>
+   309	      </section>
+   310	
+   311	      {/* FAQ Section */}
+   312	      <section className="py-20 md:py-28 bg-gray-50">
+   313	        <div className="container max-w-4xl">
+   314	          <motion.div
+   315	            initial="initial"
+   316	            whileInView="animate"
+   317	            viewport={{ once: true }}
+   318	            variants={stagger}
+   319	          >
+   320	            <motion.h2
+   321	              className="text-4xl md:text-5xl font-bold text-center mb-16"
+   322	              variants={fadeInUp}
+   323	            >
+   324	              {t(locale, 'wholesale.faq_title')}
+   325	            </motion.h2>
+   326	            <motion.div variants={fadeInUp}>
+   327	              <Accordion type="single" collapsible className="space-y-4">
+   328	                <AccordionItem value="item-1" className="bg-white border-2 border-gray-200 rounded-xl px-6 hover:border-black transition-colors">
+   329	                  <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
+   330	                    {t(locale, 'wholesale.faq_q1')}
+   331	                  </AccordionTrigger>
+   332	                  <AccordionContent className="text-gray-600 pb-5">
+   333	                    {t(locale, 'wholesale.faq_a1')}
+   334	                  </AccordionContent>
+   335	                </AccordionItem>
+   336	                <AccordionItem value="item-2" className="bg-white border-2 border-gray-200 rounded-xl px-6 hover:border-black transition-colors">
+   337	                  <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
+   338	                    {t(locale, 'wholesale.faq_q2')}
+   339	                  </AccordionTrigger>
+   340	                  <AccordionContent className="text-gray-600 pb-5">
+   341	                    {t(locale, 'wholesale.faq_a2')}
+   342	                  </AccordionContent>
+   343	                </AccordionItem>
+   344	                <AccordionItem value="item-3" className="bg-white border-2 border-gray-200 rounded-xl px-6 hover:border-black transition-colors">
+   345	                  <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
+   346	                    {t(locale, 'wholesale.faq_q3')}
+   347	                  </AccordionTrigger>
+   348	                  <AccordionContent className="text-gray-600 pb-5">
+   349	                    {t(locale, 'wholesale.faq_a3')}
+   350	                  </AccordionContent>
+   351	                </AccordionItem>
+   352	                <AccordionItem value="item-4" className="bg-white border-2 border-gray-200 rounded-xl px-6 hover:border-black transition-colors">
+   353	                  <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
+   354	                    {t(locale, 'wholesale.faq_q4')}
+   355	                  </AccordionTrigger>
+   356	                  <AccordionContent className="text-gray-600 pb-5">
+   357	                    {t(locale, 'wholesale.faq_a4')}
+   358	                  </AccordionContent>
+   359	                </AccordionItem>
+   360	              </Accordion>
+   361	            </motion.div>
+   362	          </motion.div>
+   363	        </div>
+   364	      </section>
+   365	
+   366	      {/* Wholesale/Dropshipping Teaser */}
+   367	      <section className="py-20 md:py-28 bg-white">
+   368	        <div className="container">
+   369	          <motion.div
+   370	            initial="initial"
+   371	            whileInView="animate"
+   372	            viewport={{ once: true }}
+   373	            variants={fadeInUp}
+   374	          >
+   375	            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-gray-900 via-black to-gray-900 p-8 md:p-16 lg:p-20 border-2 border-gray-800">
+   376	              <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-white/5 to-transparent" />
+   377	              <div className="relative z-10 max-w-3xl">
+   378	                <h2 className="text-3xl md:text-5xl font-bold text-white mb-6">
+   379	                  {t(locale, 'home.wholesale_title')}
+   380	                </h2>
+   381	                <p className="text-lg md:text-xl text-gray-300 mb-8 leading-relaxed">
+   382	                  {t(locale, 'home.wholesale_desc')}
+   383	                </p>
+   384	                <Button
+   385	                  asChild
+   386	                  size="lg"
+   387	                  className="bg-white text-black hover:bg-gray-100 text-lg px-8 py-6 h-auto rounded-full font-semibold"
+   388	                >
+   389	                  <Link href={`/${locale}/wholesale`}>
+   390	                    {t(locale, 'home.learn_more')}
+   391	                    <ArrowRight className="ml-2 h-5 w-5" />
+   392	                  </Link>
+   393	                </Button>
+   394	              </div>
+   395	            </div>
+   396	          </motion.div>
+   397	        </div>
+   398	      </section>
+   399	    </div>
+   400	  )
+   401	}

@@ -1,0 +1,561 @@
+'use client'
+
+import Link from 'next/link'
+import { ArrowRight } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+
+export type HeroSlideInput = {
+  id?: string | number
+  background?: string
+  title?: string
+  subtitle?: string
+  ctaText?: string
+  ctaHref?: string
+  leftLabel?: string
+  rightLabel?: string
+}
+
+interface HeroSliderProps {
+  locale: string
+  slides?: HeroSlideInput[] | null
+  className?: string
+}
+
+type HeroSlide = {
+  id: string
+  background: string
+  title: string
+  subtitle: string
+  ctaText: string
+  ctaHref: string
+  leftLabel: string
+  rightLabel: string
+}
+
+const defaultsUk: Omit<HeroSlide, 'id'>[] = [
+  {
+    background: '/branding/hero-1.jpg',
+    title: 'СТИЛЬ ТА ЯКІСТЬ',
+    subtitle: 'Сумки для особливих моментів',
+    ctaText: 'Дивитися новинки',
+    ctaHref: '/uk/catalog',
+    leftLabel: 'ПРЕМІУМ • КОМФОРТ • НОВИЙ',
+    rightLabel: 'КОЛЕКЦІЯ • СЕЗОН',
+  },
+  {
+    background: '/branding/hero-2.jpg',
+    title: 'НОВА КОЛЕКЦІЯ 2026',
+    subtitle: 'Відкрийте для себе унікальні моделі',
+    ctaText: 'Обрати модель',
+    ctaHref: '/uk/catalog',
+    leftLabel: 'ПРЕМІУМ • КОМФОРТ • НОВИЙ',
+    rightLabel: 'КОЛЕКЦІЯ • СЕЗОН',
+  },
+  {
+    background: '/branding/hero-3.jpg',
+    title: 'АКТУАЛЬНІ МОДЕЛІ',
+    subtitle: 'Щоденна елегантність та практичність',
+    ctaText: 'Перейти в каталог',
+    ctaHref: '/uk/catalog',
+    leftLabel: 'ПРЕМІУМ • КОМФОРТ • НОВИЙ',
+    rightLabel: 'КОЛЕКЦІЯ • СЕЗОН',
+  },
+]
+
+const defaultsRu: Omit<HeroSlide, 'id'>[] = [
+  {
+    background: '/branding/hero-1.jpg',
+    title: 'СТИЛЬ И КАЧЕСТВО',
+    subtitle: 'Сумки для особенных моментов',
+    ctaText: 'Смотреть новинки',
+    ctaHref: '/ru/catalog',
+    leftLabel: 'ПРЕМИУМ • КОМФОРТ • НОВЫЙ',
+    rightLabel: 'КОЛЛЕКЦИЯ • СЕЗОН',
+  },
+  {
+    background: '/branding/hero-2.jpg',
+    title: 'НОВАЯ КОЛЛЕКЦИЯ 2026',
+    subtitle: 'Откройте для себя уникальные модели',
+    ctaText: 'Выбрать модель',
+    ctaHref: '/ru/catalog',
+    leftLabel: 'ПРЕМИУМ • КОМФОРТ • НОВЫЙ',
+    rightLabel: 'КОЛЛЕКЦИЯ • СЕЗОН',
+  },
+  {
+    background: '/branding/hero-3.jpg',
+    title: 'АКТУАЛЬНЫЕ МОДЕЛИ',
+    subtitle: 'Ежедневная элегантность и практичность',
+    ctaText: 'Перейти в каталог',
+    ctaHref: '/ru/catalog',
+    leftLabel: 'ПРЕМИУМ • КОМФОРТ • НОВЫЙ',
+    rightLabel: 'КОЛЛЕКЦИЯ • СЕЗОН',
+  },
+]
+
+function toPublicUrl(value: string | undefined, fallback: string): string {
+  if (!value) return fallback
+  const v = value.trim()
+  if (!v) return fallback
+  if (v.startsWith('http://') || v.startsWith('https://')) return v
+  if (v.startsWith('/home/')) return fallback
+  if (v.startsWith('public/')) return '/' + v.replace(/^public\//, '')
+  if (v.startsWith('/')) return v
+  return '/' + v
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+function parseLabel(value: string): string[] {
+  return value
+    .split(/[•|]/g)
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .filter((x, i, arr) => i === 0 || x.toLowerCase() !== arr[i - 1].toLowerCase())
+    .slice(0, 3)
+}
+
+export default function HeroSlider({ locale, slides, className = '' }: HeroSliderProps) {
+  const localeKey = locale === 'ru' ? 'ru' : 'uk'
+  const defaults = localeKey === 'ru' ? defaultsRu : defaultsUk
+
+  const normalizedSlides = useMemo<HeroSlide[]>(
+    () =>
+      defaults.map((d, i) => {
+        const s = slides?.[i]
+        return {
+          id: String(s?.id ?? i + 1),
+          background: toPublicUrl(s?.background, d.background),
+          title: (s?.title ?? d.title).trim(),
+          subtitle: (s?.subtitle ?? d.subtitle).trim(),
+          ctaText: (s?.ctaText ?? d.ctaText).trim(),
+          ctaHref: (s?.ctaHref ?? `/${localeKey}/catalog`).trim() || `/${localeKey}/catalog`,
+          leftLabel: (s?.leftLabel ?? d.leftLabel).trim(),
+          rightLabel: (s?.rightLabel ?? d.rightLabel).trim(),
+        }
+      }),
+    [defaults, slides, localeKey]
+  )
+
+  const total = normalizedSlides.length
+  const [active, setActive] = useState(0)
+  const rootRef = useRef<HTMLElement | null>(null)
+  const activeRef = useRef(0)
+
+  useEffect(() => {
+    activeRef.current = active
+  }, [active])
+
+  useEffect(() => {
+    const el = rootRef.current
+    if (!el) return
+
+    const last = total - 1
+    let lastIntentAt = 0
+    const throttleMs = 420
+
+    const goTo = (next: number) => {
+      const bounded = Math.max(0, Math.min(last, next))
+      if (bounded !== activeRef.current) {
+        activeRef.current = bounded
+        setActive(bounded)
+      }
+    }
+
+    const onWheel = (e: WheelEvent) => {
+      if (window.matchMedia('(max-width: 900px)').matches) return
+
+      const delta = e.deltaY
+      if (Math.abs(delta) < 8) return
+
+      const idx = activeRef.current
+      const now = Date.now()
+
+      if (delta > 0) {
+        if (idx < last) {
+          e.preventDefault()
+          if (now - lastIntentAt > throttleMs) {
+            goTo(idx + 1)
+            lastIntentAt = now
+          }
+        }
+        return
+      }
+
+      if (delta < 0 && idx > 0) {
+        e.preventDefault()
+        if (now - lastIntentAt > throttleMs) {
+          goTo(idx - 1)
+          lastIntentAt = now
+        }
+      }
+    }
+
+    let startY = 0
+    let lastY = 0
+    let moved = false
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (!e.touches.length) return
+      startY = e.touches[0].clientY
+      lastY = startY
+      moved = false
+    }
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!e.touches.length) return
+      const y = e.touches[0].clientY
+      const dy = startY - y
+      if (Math.abs(dy) < 10) return
+
+      moved = true
+      lastY = y
+
+      const idx = activeRef.current
+      const lockDown = dy > 0 && idx < last
+      const lockUp = dy < 0 && idx > 0
+      if (lockDown || lockUp) e.preventDefault()
+    }
+
+    const onTouchEnd = () => {
+      if (!moved) return
+      const dy = startY - lastY
+      const idx = activeRef.current
+
+      if (Math.abs(dy) < 34) return
+      if (dy > 0 && idx < last) goTo(idx + 1)
+      if (dy < 0 && idx > 0) goTo(idx - 1)
+    }
+
+    el.addEventListener('wheel', onWheel, { passive: false })
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
+    el.addEventListener('touchend', onTouchEnd, { passive: true })
+
+    return () => {
+      el.removeEventListener('wheel', onWheel as EventListener)
+      el.removeEventListener('touchstart', onTouchStart as EventListener)
+      el.removeEventListener('touchmove', onTouchMove as EventListener)
+      el.removeEventListener('touchend', onTouchEnd as EventListener)
+    }
+  }, [total])
+
+  const current = normalizedSlides[active]
+  const leftLines = parseLabel(current.leftLabel)
+  const rightLines = parseLabel(current.rightLabel)
+
+  return (
+    <section
+      ref={rootRef}
+      className={`jlh ${className}`}
+      data-active={active}
+      aria-label="Hero slider"
+    >
+      <div className="jlh-bg" aria-hidden="true">
+        {normalizedSlides.map((slide, i) => (
+          <div
+            key={slide.id}
+            className="jlh-bg-layer"
+            style={{
+              backgroundImage: `url("${slide.background}")`,
+              opacity: i === active ? 1 : 0,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="jlh-overlay" aria-hidden="true" />
+
+      <div className="jlh-inner">
+        <h1 className="jlh-header">
+          JULIA LEBEDEVA
+          <br />
+          COLLECTION
+        </h1>
+
+        <div className="jlh-middle">
+          <div className="jlh-side jlh-side-left" aria-hidden="true">
+            {leftLines.map((line, i) => (
+              <span key={`${line}-${i}`} className="jlh-side-line">
+                {i === 1 ? `• ${line}` : line}
+              </span>
+            ))}
+          </div>
+
+          <div className="jlh-title-wrap">
+            <h2 className="jlh-title">{current.title}</h2>
+          </div>
+
+          <div className="jlh-side jlh-side-right" aria-hidden="true">
+            {rightLines.map((line, i) => (
+              <span key={`${line}-${i}`} className="jlh-side-line">
+                {line}
+              </span>
+            ))}
+            <span className="jlh-side-dot">•</span>
+          </div>
+        </div>
+
+        <div className="jlh-bottom">
+          <p className="jlh-subtitle">{current.subtitle}</p>
+
+          <Link href={current.ctaHref} className="jlh-cta">
+            {current.ctaText}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+
+          <div className="jlh-progress" aria-hidden="true">
+            <div className="jlh-progress-top">
+              <span>{pad2(active + 1)}</span>
+              <span>{pad2(total)}</span>
+            </div>
+            <div className="jlh-progress-line">
+              <div
+                className="jlh-progress-fill"
+                style={{ width: `${((active + 1) / total) * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style jsx>{`
+        .jlh {
+          position: relative;
+          height: 100svh;
+          min-height: 560px;
+          width: 100%;
+          overflow: hidden;
+          background: #000;
+          color: rgba(255, 255, 255, 0.96);
+          touch-action: pan-y;
+        }
+
+        .jlh-bg {
+          position: absolute;
+          inset: 0;
+        }
+
+        .jlh-bg-layer {
+          position: absolute;
+          inset: 0;
+          background-size: cover;
+          background-position: center;
+          transition: opacity 0.55s ease;
+          will-change: opacity;
+        }
+
+        .jlh-overlay {
+          position: absolute;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.48);
+        }
+
+        .jlh-inner {
+          position: relative;
+          z-index: 2;
+          height: 100%;
+          display: grid;
+          grid-template-rows: auto 1fr auto;
+          padding: clamp(86px, 10vh, 122px) 24px 24px;
+        }
+
+        .jlh-header {
+          margin: 0;
+          text-align: center;
+          font-size: clamp(3rem, 8.2vw, 7rem);
+          line-height: 0.9;
+          font-weight: 500;
+          letter-spacing: 0.01em;
+          text-wrap: balance;
+        }
+
+        .jlh-middle {
+          display: grid;
+          grid-template-columns: minmax(120px, 220px) 1fr minmax(120px, 220px);
+          align-items: center;
+          gap: 16px;
+        }
+
+        .jlh-title-wrap {
+          display: flex;
+          justify-content: center;
+        }
+
+        .jlh-title {
+          margin: 0;
+          max-width: min(94vw, 1200px);
+          text-align: center;
+          font-size: clamp(2.8rem, 6.6vw, 5.8rem);
+          line-height: 0.93;
+          font-weight: 700;
+          text-wrap: balance;
+        }
+
+        .jlh-side {
+          opacity: 0.82;
+          font-size: clamp(1rem, 1.8vw, 2rem);
+          font-weight: 700;
+          line-height: 1.03;
+          text-transform: uppercase;
+          user-select: none;
+        }
+
+        .jlh-side-line {
+          display: block;
+          white-space: nowrap;
+        }
+
+        .jlh-side-right {
+          text-align: right;
+        }
+
+        .jlh-side-dot {
+          margin-left: 10px;
+          font-size: 1.15em;
+          vertical-align: middle;
+        }
+
+        .jlh-bottom {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .jlh-subtitle {
+          margin: 0;
+          text-align: center;
+          font-size: clamp(1.14rem, 2vw, 2rem);
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.95);
+        }
+
+        .jlh-cta {
+          margin-top: 12px;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          border-radius: 999px;
+          background: #fff;
+          color: #111;
+          padding: 12px 30px;
+          font-size: clamp(0.95rem, 1.2vw, 1.18rem);
+          font-weight: 700;
+          text-decoration: none;
+          transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .jlh-cta:hover {
+          opacity: 0.92;
+          transform: translateY(-1px);
+        }
+
+        .jlh-progress {
+          margin-top: 18px; /* увеличенный отступ от кнопки */
+          width: min(290px, 72vw);
+        }
+
+        .jlh-progress-top {
+          display: flex;
+          justify-content: space-between;
+          font-size: 1.95rem;
+          line-height: 1;
+          font-weight: 500;
+          font-variant-numeric: tabular-nums;
+          color: #fff;
+        }
+
+        .jlh-progress-line {
+          margin-top: 5px;
+          width: 100%;
+          height: 2px;
+          background: rgba(255, 255, 255, 0.42);
+          overflow: hidden;
+        }
+
+        .jlh-progress-fill {
+          height: 100%;
+          background: #fff;
+          transition: width 0.35s ease;
+        }
+
+        @media (max-width: 900px) {
+          .jlh {
+            min-height: 100svh;
+          }
+
+          .jlh-inner {
+            padding: 82px 14px 14px;
+            grid-template-rows: auto 1fr auto;
+          }
+
+          .jlh-header {
+            font-size: clamp(2rem, 12.2vw, 4.2rem);
+            line-height: 0.95;
+            max-width: 94vw;
+            margin-inline: auto;
+          }
+
+          .jlh-middle {
+            grid-template-columns: 1fr;
+            gap: 0;
+            align-items: start;
+          }
+
+          .jlh-side {
+            display: none;
+          }
+
+          .jlh-title-wrap {
+            justify-content: center;
+          }
+
+          .jlh-title {
+            max-width: 94vw;
+            font-size: clamp(1.9rem, 10.7vw, 3.85rem);
+            line-height: 0.97;
+            margin-inline: auto;
+          }
+
+          /* ступенчатое позиционирование заголовка на мобильных (1/2/3 слайд) */
+          .jlh[data-active='0'] .jlh-title {
+            margin-top: 4.5vh;
+          }
+
+          .jlh[data-active='1'] .jlh-title {
+            margin-top: 9vh;
+          }
+
+          .jlh[data-active='2'] .jlh-title {
+            margin-top: 13.5vh;
+          }
+
+          .jlh-bottom {
+            padding-bottom: calc(8px + env(safe-area-inset-bottom));
+          }
+
+          .jlh-subtitle {
+            font-size: clamp(1rem, 4.8vw, 1.34rem);
+            max-width: 92vw;
+          }
+
+          .jlh-cta {
+            margin-top: 10px;
+            padding: 11px 24px;
+            font-size: 1.02rem;
+          }
+
+          .jlh-progress {
+            margin-top: 16px;
+            width: min(305px, 82vw);
+          }
+
+          .jlh-progress-top {
+            font-size: 1.85rem;
+          }
+        }
+      `}</style>
+    </section>
+  )
+}

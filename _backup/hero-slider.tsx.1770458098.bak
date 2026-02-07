@@ -1,0 +1,199 @@
+'use client'
+
+import React from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { ArrowRight } from 'lucide-react'
+import FullScreenScrollFX, { FullScreenFXAPI } from '@/components/ui/full-screen-scroll-fx'
+
+type HeroSlideInput = {
+  id?: string
+  background?: string
+  title?: string
+  subtitle?: string
+  ctaText?: string
+  ctaHref?: string
+  leftLabel?: string
+  rightLabel?: string
+}
+
+type HeroSliderProps = {
+  slides?: HeroSlideInput[]
+  className?: string
+  locale?: string
+}
+
+type CopyItem = {
+  title: string
+  subtitle: string
+  cta: string
+  left: string
+  right: string
+}
+
+type NormalizedSlide = {
+  id: string
+  background: string
+  title: string
+  subtitle: string
+  ctaText: string
+  ctaHref: string
+  leftLabel: string
+  rightLabel: string
+}
+
+const ukCopy: CopyItem[] = [
+  {
+    title: 'СТИЛЬ ТА ЕЛЕГАНТНІСТЬ',
+    subtitle: 'Сумки для особливих моментів',
+    cta: 'До каталогу',
+    left: 'ПРЕМІУМ',
+    right: 'КОЛЕКЦІЯ',
+  },
+  {
+    title: 'ЩОДЕННИЙ КОМФОРТ',
+    subtitle: 'Практичні моделі на кожен день',
+    cta: 'Обрати модель',
+    left: 'КОМФОРТ',
+    right: 'СЕЗОН',
+  },
+  {
+    title: 'НОВІ КОЛЬОРИ СЕЗОНУ',
+    subtitle: 'Актуальні відтінки та форми',
+    cta: 'Дивитися новинки',
+    left: 'НОВИЙ',
+    right: 'СЕЗОН',
+  },
+]
+
+const ruCopy: CopyItem[] = [
+  {
+    title: 'СТИЛЬ И ЭЛЕГАНТНОСТЬ',
+    subtitle: 'Сумки для особых моментов',
+    cta: 'В каталог',
+    left: 'ПРЕМИУМ',
+    right: 'КОЛЛЕКЦИЯ',
+  },
+  {
+    title: 'КОМФОРТ НА КАЖДЫЙ ДЕНЬ',
+    subtitle: 'Практичные модели на каждый день',
+    cta: 'Выбрать модель',
+    left: 'КОМФОРТ',
+    right: 'ЕЖЕДНЕВНО',
+  },
+  {
+    title: 'НОВЫЕ ЦВЕТА СЕЗОНА',
+    subtitle: 'Актуальные оттенки и формы',
+    cta: 'Смотреть новинки',
+    left: 'НОВЫЙ',
+    right: 'СЕЗОН',
+  },
+]
+
+const fallbackBackgrounds = [
+  '/home/hero/slide-2.jpg',
+  '/home/hero/slide-3.jpg',
+  '/home/hero/slide-1.jpg',
+]
+
+export default function HeroSlider({ slides = [], className, locale }: HeroSliderProps) {
+  const apiRef = React.useRef<FullScreenFXAPI>(null)
+  const pathname = usePathname()
+  const [active, setActive] = React.useState(0)
+
+  const localeKey = React.useMemo(() => {
+    const fromPath = pathname?.split('/')[1] || 'uk'
+    const raw = (locale || fromPath).toLowerCase()
+    return raw.startsWith('ru') ? 'ru' : 'uk'
+  }, [locale, pathname])
+
+  const copy = localeKey === 'ru' ? ruCopy : ukCopy
+
+  const normalizedSlides = React.useMemo<NormalizedSlide[]>(() => {
+    const source: HeroSlideInput[] =
+      slides.length > 0
+        ? slides
+        : fallbackBackgrounds.map((bg, i) => ({
+            id: `default-${i + 1}`,
+            background: bg,
+          }))
+
+    return source.slice(0, 3).map((s, i) => {
+      const c = copy[i % copy.length]
+      return {
+        id: s.id ?? `slide-${i + 1}`,
+        background: s.background || fallbackBackgrounds[i % fallbackBackgrounds.length],
+        title: s.title ?? c.title,
+        subtitle: s.subtitle ?? c.subtitle,
+        ctaText: s.ctaText ?? c.cta,
+        ctaHref: s.ctaHref ?? `/${localeKey}/catalog`,
+        leftLabel: s.leftLabel ?? c.left,
+        rightLabel: s.rightLabel ?? c.right,
+      }
+    })
+  }, [slides, copy, localeKey])
+
+  const sections = React.useMemo(
+    () =>
+      normalizedSlides.map((s) => ({
+        id: s.id,
+        background: s.background,
+        leftLabel: s.leftLabel,
+        title: s.title,
+        rightLabel: s.rightLabel,
+      })),
+    [normalizedSlides]
+  )
+
+  const forceThirdSlideLabels = (arr: any[]) => {
+  if (!Array.isArray(arr) || arr.length < 3) return arr
+  const copy = [...arr]
+  copy[2] = {
+    ...copy[2],
+    leftLabel: localeKey === 'ru' ? 'НОВЫЙ' : 'НОВИЙ',
+    rightLabel: 'СЕЗОН',
+  }
+  return copy
+}
+const displaySlides = forceThirdSlideLabels(normalizedSlides)
+const current = displaySlides[Math.min(active, displaySlides.length - 1)] ?? displaySlides[0]
+
+  return (
+    <section className={className}>
+      <FullScreenScrollFX
+        apiRef={apiRef}
+        sections={displaySlides.map(({ id, background, title, leftLabel, rightLabel }) => ({ id, background, title, leftLabel, rightLabel }))}
+        onIndexChange={setActive}
+        header={
+          <>
+            <div>JULIA LEBEDEVA</div>
+            <div>COLLECTION</div>
+          </>
+        }
+        footer={
+          <div className="flex flex-col items-center gap-4 normal-case">
+            <p className="max-w-3xl px-4 text-center text-white/90 text-base md:text-2xl normal-case">
+              {current?.subtitle}
+            </p>
+
+            <Link
+              href={current?.ctaHref || `/${localeKey}/catalog`}
+              className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-3 text-black text-sm md:text-base font-semibold hover:bg-white/90 transition"
+            >
+              {current?.ctaText || (localeKey === 'ru' ? 'Смотреть новинки' : 'Дивитися новинки')}
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        }
+        showProgress
+        durations={{ change: 0.72, snap: 800 }}
+        colors={{
+          text: 'rgba(255,255,255,0.96)',
+          overlay: 'rgba(0,0,0,0.45)',
+          pageBg: '#000000',
+          stageBg: '#000000',
+        }}
+      />
+    </section>
+  )
+}

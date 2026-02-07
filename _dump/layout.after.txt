@@ -1,0 +1,32 @@
+     1	import type { Metadata } from "next"
+     2	import { Inter } from "next/font/google"
+     3	import "./globals.css"
+     4	
+     5	const inter = Inter({ subsets: ["latin", "cyrillic"] })
+     6	
+     7	export const metadata: Metadata = {
+     8	  title: "Julia Lebedeva — Преміальні жіночі сумки в Україні",
+     9	  description: "Преміальні жіночі сумки та аксесуари від Julia Lebedeva. Актуальні колекції, швидка доставка по Україні, опт для партнерів.",
+    10	  keywords: "жіночі сумки, сумки Україна, Julia Lebedeva, преміальні сумки, опт сумки, дропшипінг",
+    11	  icons: {
+    12	    icon: "/favicon.svg",
+    13	  },
+    14	  openGraph: {
+    15	    title: "Julia Lebedeva — Преміальні жіночі сумки",
+    16	    description: "Преміальні жіночі сумки та аксесуари. Актуальні колекції, швидка доставка.",
+    17	    type: "website",
+    18	    locale: "uk_UA",
+    19	  },
+    20	}
+    21	
+    22	export default function RootLayout({
+    23	  children,
+    24	}: {
+    25	  children: React.ReactNode
+    26	}) {
+    27	  return (
+    28	    <html lang="uk">
+    29	      <body className={inter.className}>{children}</body>
+    30	    </html>
+    31	  )
+    32	}

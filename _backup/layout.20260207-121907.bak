@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   description: "Преміальні жіночі сумки та аксесуари від Julia Lebedeva. Актуальні колекції, швидка доставка по Україні, опт для партнерів.",
   keywords: "жіночі сумки, сумки Україна, Julia Lebedeva, преміальні сумки, опт сумки, дропшипінг",
   icons: {
-    icon: "/favicon.svg",
+    icon: "/icon.png",
   },
   openGraph: {
     title: "Julia Lebedeva — Преміальні жіночі сумки",

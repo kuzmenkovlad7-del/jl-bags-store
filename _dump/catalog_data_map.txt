@@ -1,0 +1,276 @@
+lib/types.ts:22:  is_new?: boolean
+lib/types.ts:23:  is_hit?: boolean
+components/footer.tsx:39:                href={`/${locale}/catalog`}
+components/footer.tsx:42:                {t(locale, 'nav.catalog')}
+components/header.tsx:46:              <Link href={`/${locale}/catalog`} className="text-sm font-medium text-black transition-colors hover:text-black/65">
+components/header.tsx:47:                {t(locale, 'nav.catalog')}
+components/header.tsx:134:            <Link href={`/${locale}/catalog`} onClick={closeMobileMenu} className="text-base font-medium py-3 border-b border-black/10 text-black transition-colors hover:text-black/65">
+components/header.tsx:135:              {t(locale, 'nav.catalog')}
+lib/i18n.ts:16:      catalog: 'Каталог',
+lib/i18n.ts:26:      featured_products: 'Нові надходження та хіти',
+lib/i18n.ts:41:    catalog: {
+lib/i18n.ts:305:      catalog: 'Каталог',
+lib/i18n.ts:315:      featured_products: 'Новые поступления и хиты',
+lib/i18n.ts:330:    catalog: {
+lib/supabase/server.ts:1:import { createClient } from '@supabase/supabase-js'
+lib/supabase/server.ts:5:  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+lib/supabase/server.ts:6:  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+lib/supabase/server.ts:8:  return createClient(supabaseUrl, supabaseAnonKey, {
+app/sitemap.ts:2:import { supabase } from '@/lib/supabase/client'
+app/sitemap.ts:8:  const { data: products } = await supabase
+app/sitemap.ts:9:    .from('products')
+app/sitemap.ts:10:    .select('slug, updated_at')
+app/sitemap.ts:11:    .eq('is_active', true)
+app/sitemap.ts:15:    '/catalog',
+app/sitemap.ts:35:    if (products) {
+app/sitemap.ts:36:      for (const product of products) {
+lib/supabase/client.ts:1:import { createClient } from '@supabase/supabase-js'
+lib/supabase/client.ts:3:const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+lib/supabase/client.ts:4:const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+lib/supabase/client.ts:6:if (!supabaseUrl || !supabaseAnonKey) {
+lib/supabase/client.ts:10:export const supabase = supabaseUrl && supabaseAnonKey
+lib/supabase/client.ts:11:  ? createClient(supabaseUrl, supabaseAnonKey)
+lib/supabase/storage.ts:1:import { supabase } from './client'
+lib/supabase/storage.ts:15:    const storagePath = `products/${productCode}/${folder}/${fileName}`
+lib/supabase/storage.ts:17:    const { data, error } = await supabase.storage
+lib/supabase/storage.ts:18:      .from(BUCKET_NAME)
+lib/supabase/storage.ts:28:    } = supabase.storage.from(BUCKET_NAME).getPublicUrl(storagePath)
+lib/supabase/storage.ts:39:    const { error } = await supabase.storage.from(BUCKET_NAME).remove([storagePath])
+app/admin/login/page.tsx:8:import { supabase } from '@/lib/supabase/client'
+app/admin/login/page.tsx:24:      const { data, error } = await supabase.auth.signInWithPassword({
+app/admin/login/page.tsx:31:      router.push('/admin/products')
+app/api/orders/route.ts:2:import { supabase } from '@/lib/supabase/client'
+app/api/orders/route.ts:19:    const { data: order, error: orderError } = await supabase
+app/api/orders/route.ts:20:      .from('orders')
+app/api/orders/route.ts:31:      .select()
+app/api/orders/route.ts:47:    const { error: itemsError } = await supabase
+app/api/orders/route.ts:48:      .from('order_items')
+app/api/orders/route.ts:91:    await supabase
+app/api/orders/route.ts:92:      .from('orders')
+app/api/orders/route.ts:97:      .eq('id', order.id)
+lib/admin-i18n.ts:5:    products: 'Товары',
+lib/admin-i18n.ts:10:  products: {
+app/api/admin/media/upload/route.ts:2:import { supabase } from '@/lib/supabase/client'
+app/api/admin/media/upload/route.ts:20:    const storagePath = `products/${productCode}/${folder}/${fileName}`
+app/api/admin/media/upload/route.ts:23:    const { error: uploadError } = await supabase.storage
+app/api/admin/media/upload/route.ts:24:      .from('product-media')
+app/api/admin/media/upload/route.ts:38:    } = supabase.storage.from('product-media').getPublicUrl(storagePath)
+app/api/admin/media/upload/route.ts:41:    const { data: existingMedia } = await supabase
+app/api/admin/media/upload/route.ts:42:      .from('product_media')
+app/api/admin/media/upload/route.ts:43:      .select('position')
+app/api/admin/media/upload/route.ts:44:      .eq('product_id', productId)
+app/api/admin/media/upload/route.ts:45:      .order('position', { ascending: false })
+app/api/admin/media/upload/route.ts:51:    const { data: mediaRecord, error: dbError } = await supabase
+app/api/admin/media/upload/route.ts:52:      .from('product_media')
+app/api/admin/media/upload/route.ts:61:      .select()
+app/admin/products/page.tsx:6:import { supabase } from '@/lib/supabase/client'
+app/admin/products/page.tsx:15:  const [products, setProducts] = useState<Product[]>([])
+app/admin/products/page.tsx:25:    const { data } = await supabase
+app/admin/products/page.tsx:26:      .from('products')
+app/admin/products/page.tsx:27:      .select('*, media:product_media(*)')
+app/admin/products/page.tsx:28:      .order('sort_order', { ascending: true })
+app/admin/products/page.tsx:37:    const { error } = await supabase
+app/admin/products/page.tsx:38:      .from('products')
+app/admin/products/page.tsx:40:      .eq('id', product.id)
+app/admin/products/page.tsx:45:        description: ta('products.errorUpdate'),
+app/admin/products/page.tsx:51:    toast({ title: ta('products.productUpdated') })
+app/admin/products/page.tsx:59:    const { data, error } = await supabase
+app/admin/products/page.tsx:60:      .from('products')
+app/admin/products/page.tsx:77:      .select()
+app/admin/products/page.tsx:83:        description: ta('products.errorUpdate'),
+app/admin/products/page.tsx:89:    toast({ title: ta('products.productDuplicated') })
+app/admin/products/page.tsx:94:    if (!confirm(ta('products.confirmDelete'))) return
+app/admin/products/page.tsx:96:    const { error } = await supabase.from('products').delete().eq('id', id)
+app/admin/products/page.tsx:101:        description: ta('products.errorDelete'),
+app/admin/products/page.tsx:107:    toast({ title: ta('products.productDeleted') })
+app/admin/products/page.tsx:128:    return <div>{ta('products.loading')}</div>
+app/admin/products/page.tsx:134:        <h1 className="text-3xl font-bold">{ta('products.title')}</h1>
+app/admin/products/page.tsx:137:          {ta('products.addProduct')}
+app/admin/products/page.tsx:145:              <th className="px-4 py-3 text-left text-sm font-medium">{ta('products.code')}</th>
+app/admin/products/page.tsx:146:              <th className="px-4 py-3 text-left text-sm font-medium">{ta('products.name')}</th>
+app/admin/products/page.tsx:147:              <th className="px-4 py-3 text-left text-sm font-medium">{ta('products.prices')}</th>
+app/admin/products/page.tsx:148:              <th className="px-4 py-3 text-left text-sm font-medium">{ta('products.stock')}</th>
+app/admin/products/page.tsx:149:              <th className="px-4 py-3 text-left text-sm font-medium">{ta('products.status')}</th>
+app/admin/products/page.tsx:150:              <th className="px-4 py-3 text-right text-sm font-medium">{ta('products.actions')}</th>
+app/admin/products/page.tsx:154:            {products.map((product) => (
+app/admin/products/page.tsx:160:                    {ta('products.retail')}: {formatPrice(product.price_retail)}
+app/admin/products/page.tsx:163:                    {ta('products.drop')}: {formatPrice(product.price_drop)}
+app/admin/orders/page.tsx:4:import { supabase } from '@/lib/supabase/client'
+app/admin/orders/page.tsx:21:    const { data } = await supabase
+app/admin/orders/page.tsx:22:      .from('orders')
+app/admin/orders/page.tsx:23:      .select('*, items:order_items(*)')
+app/admin/orders/page.tsx:24:      .order('created_at', { ascending: false })
+app/admin/orders/page.tsx:33:    const { error } = await supabase
+app/admin/orders/page.tsx:34:      .from('orders')
+app/admin/orders/page.tsx:36:      .eq('id', orderId)
+app/admin/settings/page.tsx:7:import { supabase } from '@/lib/supabase/client'
+app/admin/settings/page.tsx:29:    const { data } = await supabase
+app/admin/settings/page.tsx:30:      .from('settings')
+app/admin/settings/page.tsx:31:      .select('*')
+app/admin/settings/page.tsx:32:      .eq('id', 1)
+app/admin/settings/page.tsx:45:      const { error } = await supabase
+app/admin/settings/page.tsx:46:        .from('settings')
+app/admin/settings/page.tsx:48:        .eq('id', 1)
+app/[locale]/page.tsx:19:import { supabase } from '@/lib/supabase/client'
+app/[locale]/page.tsx:60:  const [products, setProducts] = useState<Product[]>([])
+app/[locale]/page.tsx:85:        // Load featured products (new and hit items)
+app/[locale]/page.tsx:86:        const { data: productsData } = await supabase
+app/[locale]/page.tsx:87:          .from('products')
+app/[locale]/page.tsx:88:          .select('*, media:product_media(*)')
+app/[locale]/page.tsx:89:          .eq('is_active', true)
+app/[locale]/page.tsx:90:          .or('is_new.eq.true,is_hit.eq.true')
+app/[locale]/page.tsx:91:          .order('created_at', { ascending: false })
+app/[locale]/page.tsx:94:        setProducts(productsData || [])
+app/[locale]/page.tsx:131:                      href={`/${locale}/catalog`}
+app/[locale]/page.tsx:167:                {t(locale, 'home.featured_products')}
+app/[locale]/page.tsx:171:                  <Link href={`/${locale}/catalog`}>
+app/[locale]/page.tsx:185:            ) : products.length > 0 ? (
+app/[locale]/page.tsx:187:                {products.map((product) => {
+app/[locale]/page.tsx:212:                            {product.is_new && (
+app/[locale]/page.tsx:214:                                {t(locale, 'catalog.flag_new')}
+app/[locale]/page.tsx:217:                            {product.is_hit && (
+app/[locale]/page.tsx:219:                                {t(locale, 'catalog.flag_hit')}
+app/[locale]/page.tsx:244:                <Link href={`/${locale}/catalog`}>
+app/admin/layout.tsx:7:import { supabase } from '@/lib/supabase/client'
+app/admin/layout.tsx:29:    } = await supabase.auth.getUser()
+app/admin/layout.tsx:40:    await supabase.auth.signOut()
+app/admin/layout.tsx:61:            <Link href="/admin/products" className="font-bold text-lg">
+app/admin/layout.tsx:66:                href="/admin/products"
+app/admin/layout.tsx:68:                  pathname === '/admin/products'
+app/admin/layout.tsx:74:                {ta('nav.products')}
+app/api/admin/media/set-primary/route.ts:2:import { supabase } from '@/lib/supabase/client'
+app/api/admin/media/set-primary/route.ts:13:    await supabase
+app/api/admin/media/set-primary/route.ts:14:      .from('product_media')
+app/api/admin/media/set-primary/route.ts:16:      .eq('product_id', productId)
+app/api/admin/media/set-primary/route.ts:19:    const { error } = await supabase
+app/api/admin/media/set-primary/route.ts:20:      .from('product_media')
+app/api/admin/media/set-primary/route.ts:22:      .eq('id', mediaId)
+app/admin/products/product-dialog.tsx:11:import { supabase } from '@/lib/supabase/client'
+app/admin/products/product-dialog.tsx:50:    is_new: false,
+app/admin/products/product-dialog.tsx:51:    is_hit: false,
+app/admin/products/product-dialog.tsx:57:      const { data } = await supabase
+app/admin/products/product-dialog.tsx:58:        .from('categories')
+app/admin/products/product-dialog.tsx:59:        .select('*')
+app/admin/products/product-dialog.tsx:60:        .eq('is_active', true)
+app/admin/products/product-dialog.tsx:61:        .order('sort_order')
+app/admin/products/product-dialog.tsx:69:      const { data } = await supabase
+app/admin/products/product-dialog.tsx:70:        .from('product_categories')
+app/admin/products/product-dialog.tsx:71:        .select('category_id')
+app/admin/products/product-dialog.tsx:72:        .eq('product_id', product.id)
+app/admin/products/product-dialog.tsx:80:      const { data } = await supabase
+app/admin/products/product-dialog.tsx:81:        .from('product_media')
+app/admin/products/product-dialog.tsx:82:        .select('*')
+app/admin/products/product-dialog.tsx:83:        .eq('product_id', product.id)
+app/admin/products/product-dialog.tsx:84:        .order('position')
+app/admin/products/product-dialog.tsx:108:          is_new: product.is_new || false,
+app/admin/products/product-dialog.tsx:109:          is_hit: product.is_hit || false,
+app/admin/products/product-dialog.tsx:130:        is_new: false,
+app/admin/products/product-dialog.tsx:131:        is_hit: false,
+app/admin/products/product-dialog.tsx:141:    const { data } = await supabase
+app/admin/products/product-dialog.tsx:142:      .from('product_media')
+app/admin/products/product-dialog.tsx:143:      .select('*')
+app/admin/products/product-dialog.tsx:144:      .eq('product_id', product.id)
+app/admin/products/product-dialog.tsx:145:      .order('position')
+app/admin/products/product-dialog.tsx:169:        is_new: formData.is_new,
+app/admin/products/product-dialog.tsx:170:        is_hit: formData.is_hit,
+app/admin/products/product-dialog.tsx:177:        const { error } = await supabase
+app/admin/products/product-dialog.tsx:178:          .from('products')
+app/admin/products/product-dialog.tsx:180:          .eq('id', product.id)
+app/admin/products/product-dialog.tsx:185:        const { data: newProduct, error } = await supabase
+app/admin/products/product-dialog.tsx:186:          .from('products')
+app/admin/products/product-dialog.tsx:188:          .select()
+app/admin/products/product-dialog.tsx:197:      await supabase
+app/admin/products/product-dialog.tsx:198:        .from('product_categories')
+app/admin/products/product-dialog.tsx:200:        .eq('product_id', productId)
+app/admin/products/product-dialog.tsx:209:        const { error: categoryError } = await supabase
+app/admin/products/product-dialog.tsx:210:          .from('product_categories')
+app/admin/products/product-dialog.tsx:216:      toast({ title: product ? ta('products.productUpdated') : ta('products.productCreated') })
+app/admin/products/product-dialog.tsx:233:          <DialogTitle>{product ? ta('products.editProduct') : ta('products.addProduct')}</DialogTitle>
+app/admin/products/product-dialog.tsx:447:                  id="is_new"
+app/admin/products/product-dialog.tsx:448:                  checked={formData.is_new}
+app/admin/products/product-dialog.tsx:450:                    setFormData({ ...formData, is_new: checked as boolean })
+app/admin/products/product-dialog.tsx:454:                  htmlFor="is_new"
+app/admin/products/product-dialog.tsx:462:                  id="is_hit"
+app/admin/products/product-dialog.tsx:463:                  checked={formData.is_hit}
+app/admin/products/product-dialog.tsx:465:                    setFormData({ ...formData, is_hit: checked as boolean })
+app/admin/products/product-dialog.tsx:469:                  htmlFor="is_hit"
+components/ui/hero-slider.tsx:129:        ctaHref: s.ctaHref ?? `/${localeKey}/catalog`,
+components/ui/hero-slider.tsx:180:              href={current?.ctaHref || `/${localeKey}/catalog`}
+app/api/admin/media/delete/route.ts:2:import { supabase } from '@/lib/supabase/client'
+app/api/admin/media/delete/route.ts:14:      await supabase.storage.from('product-media').remove([storagePath])
+app/api/admin/media/delete/route.ts:18:    const { error } = await supabase
+app/api/admin/media/delete/route.ts:19:      .from('product_media')
+app/api/admin/media/delete/route.ts:21:      .eq('id', mediaId)
+app/[locale]/layout.tsx:6:import { supabase } from '@/lib/supabase/client'
+app/[locale]/layout.tsx:10:  const { data } = await supabase
+app/[locale]/layout.tsx:11:    .from('settings')
+app/[locale]/layout.tsx:12:    .select('*')
+app/[locale]/layout.tsx:13:    .eq('id', 1)
+app/[locale]/catalog/page.tsx:9:import { supabase } from '@/lib/supabase/client'
+app/[locale]/catalog/page.tsx:21:  const [products, setProducts] = useState<Product[]>([])
+app/[locale]/catalog/page.tsx:39:    if (!supabase) {
+app/[locale]/catalog/page.tsx:47:      const { data: categoriesData } = await supabase
+app/[locale]/catalog/page.tsx:48:        .from('categories')
+app/[locale]/catalog/page.tsx:49:        .select('*')
+app/[locale]/catalog/page.tsx:50:        .eq('is_active', true)
+app/[locale]/catalog/page.tsx:51:        .order('sort_order')
+app/[locale]/catalog/page.tsx:57:      // Load products - simplified query without nested category relation
+app/[locale]/catalog/page.tsx:62:        const { data: categoryProductIds, error: catError } = await supabase
+app/[locale]/catalog/page.tsx:63:          .from('product_categories')
+app/[locale]/catalog/page.tsx:64:          .select('product_id')
+app/[locale]/catalog/page.tsx:65:          .eq('category_id', categoryFilter)
+app/[locale]/catalog/page.tsx:68:          console.error('Category filter error, falling back to all products:', catError)
+app/[locale]/catalog/page.tsx:69:          // Fallback: show all products if category query fails
+app/[locale]/catalog/page.tsx:73:          // True empty state: category selected but no products
+app/[locale]/catalog/page.tsx:81:      let query = supabase
+app/[locale]/catalog/page.tsx:82:        .from('products')
+app/[locale]/catalog/page.tsx:83:        .select('*, media:product_media(*)')
+app/[locale]/catalog/page.tsx:84:        .eq('is_active', true)
+app/[locale]/catalog/page.tsx:85:        .order('created_at', { ascending: false })
+app/[locale]/catalog/page.tsx:95:        console.error('Error loading products:', error)
+app/[locale]/catalog/page.tsx:119:    router.push(`/${locale}/catalog?${params.toString()}`, { scroll: false })
+app/[locale]/catalog/page.tsx:123:    let filtered = [...products]
+app/[locale]/catalog/page.tsx:147:            return p.is_new === true
+app/[locale]/catalog/page.tsx:149:            return p.is_hit === true
+app/[locale]/catalog/page.tsx:182:      <h1 className="text-4xl font-bold mb-8">{t(locale, 'catalog.title')}</h1>
+app/[locale]/catalog/page.tsx:190:            placeholder={t(locale, 'catalog.search_placeholder')}
+app/[locale]/catalog/page.tsx:202:              <SelectValue placeholder={t(locale, 'catalog.filter_category')} />
+app/[locale]/catalog/page.tsx:205:              <SelectItem value="all">{t(locale, 'catalog.all_categories')}</SelectItem>
+app/[locale]/catalog/page.tsx:217:              <SelectValue placeholder={t(locale, 'catalog.filter_flag')} />
+app/[locale]/catalog/page.tsx:220:              <SelectItem value="all">{t(locale, 'catalog.all_flags')}</SelectItem>
+app/[locale]/catalog/page.tsx:221:              <SelectItem value="new">{t(locale, 'catalog.flag_new')}</SelectItem>
+app/[locale]/catalog/page.tsx:222:              <SelectItem value="hit">{t(locale, 'catalog.flag_hit')}</SelectItem>
+app/[locale]/catalog/page.tsx:223:              <SelectItem value="sale">{t(locale, 'catalog.flag_sale')}</SelectItem>
+app/[locale]/catalog/page.tsx:230:              <SelectValue placeholder={t(locale, 'catalog.filter_stock')} />
+app/[locale]/catalog/page.tsx:233:              <SelectItem value="all">{t(locale, 'catalog.all_stock')}</SelectItem>
+app/[locale]/catalog/page.tsx:236:                  {t(locale, `catalog.${status}`)}
+app/[locale]/catalog/page.tsx:245:              <SelectValue placeholder={t(locale, 'catalog.sort_by')} />
+app/[locale]/catalog/page.tsx:248:              <SelectItem value="newest">{t(locale, 'catalog.sort_newest')}</SelectItem>
+app/[locale]/catalog/page.tsx:249:              <SelectItem value="code">{t(locale, 'catalog.sort_code')}</SelectItem>
+app/[locale]/catalog/page.tsx:250:              <SelectItem value="price_asc">{t(locale, 'catalog.sort_price_asc')}</SelectItem>
+app/[locale]/catalog/page.tsx:251:              <SelectItem value="price_desc">{t(locale, 'catalog.sort_price_desc')}</SelectItem>
+app/[locale]/catalog/page.tsx:290:                  {product.is_new && (
+app/[locale]/catalog/page.tsx:292:                      {t(locale, 'catalog.flag_new')}
+app/[locale]/catalog/page.tsx:295:                  {product.is_hit && (
+app/[locale]/catalog/page.tsx:297:                      {t(locale, 'catalog.flag_hit')}
+app/[locale]/catalog/page.tsx:302:                      {t(locale, 'catalog.flag_sale')}
+app/[locale]/catalog/page.tsx:315:                {t(locale, `catalog.${product.stock_status}`)}
+app/[locale]/catalog/page.tsx:324:          No products found
+app/[locale]/contacts/page.tsx:3:import { supabase } from '@/lib/supabase/client'
+app/[locale]/contacts/page.tsx:7:  const { data } = await supabase
+app/[locale]/contacts/page.tsx:8:    .from('settings')
+app/[locale]/contacts/page.tsx:9:    .select('*')
+app/[locale]/contacts/page.tsx:10:    .eq('id', 1)
+app/[locale]/product/[slug]/page.tsx:5:import { supabase } from '@/lib/supabase/client'
+app/[locale]/product/[slug]/page.tsx:13:  const { data } = await supabase
+app/[locale]/product/[slug]/page.tsx:14:    .from('products')
+app/[locale]/product/[slug]/page.tsx:15:    .select('*, media:product_media(*)')
+app/[locale]/product/[slug]/page.tsx:16:    .eq('slug', slug)
+app/[locale]/product/[slug]/page.tsx:17:    .eq('is_active', true)
+app/[locale]/product/[slug]/page.tsx:18:    .order('is_primary', { foreignTable: 'product_media', ascending: false })
+app/[locale]/product/[slug]/page.tsx:19:    .order('position', { foreignTable: 'product_media', ascending: true })
+app/[locale]/product/[slug]/page.tsx:26:  const { data } = await supabase
+app/[locale]/product/[slug]/page.tsx:27:    .from('products')
+app/[locale]/product/[slug]/page.tsx:28:    .select('*, media:product_media(*)')
+app/[locale]/product/[slug]/page.tsx:29:    .eq('is_active', true)
+app/[locale]/product/[slug]/page.tsx:30:    .neq('id', productId)

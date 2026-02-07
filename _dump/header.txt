@@ -1,0 +1,210 @@
+     1	'use client'
+     2	
+     3	import { useState } from 'react'
+     4	import Link from 'next/link'
+     5	import Image from 'next/image'
+     6	import { usePathname } from 'next/navigation'
+     7	import { Instagram, Facebook, Phone, Menu, X } from 'lucide-react'
+     8	import { Button } from '@/components/ui/button'
+     9	import { Locale, t } from '@/lib/i18n'
+    10	import { Settings } from '@/lib/types'
+    11	
+    12	interface HeaderProps {
+    13	  locale: Locale
+    14	  settings: Settings
+    15	}
+    16	
+    17	export function Header({ locale, settings }: HeaderProps) {
+    18	  const pathname = usePathname()
+    19	  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+    20	
+    21	  const switchLocale = () => {
+    22	    const newLocale = locale === 'uk' ? 'ru' : 'uk'
+    23	    const newPath = pathname.replace(`/${locale}`, `/${newLocale}`)
+    24	    window.location.href = newPath
+    25	  }
+    26	
+    27	  const closeMobileMenu = () => setMobileMenuOpen(false)
+    28	
+    29	  return (
+    30	    <>
+    31	      <header className="sticky top-0 z-40 w-full border-b bg-white/58 backdrop-blur-xl-xl supports-[backdrop-filter]:bg-white/48">
+    32	        <div className="container flex h-16 items-center justify-between">
+    33	          <div className="flex items-center gap-8">
+    34	            <Link href={`/${locale}`} className="flex items-center space-x-2">
+    35	              <Image
+    36	                src="/branding/logo-round.png"
+    37	                alt="JL"
+    38	                width={40}
+    39	                height={40}
+    40	                className="h-10 w-10 rounded-full object-cover"
+    41	              />
+    42	            </Link>
+    43	
+    44	            <nav className="hidden md:flex gap-6">
+    45	              <Link
+    46	                href={`/${locale}/catalog`}
+    47	                className="text-sm font-medium transition-colors hover:text-primary"
+    48	              >
+    49	                {t(locale, 'nav.catalog')}
+    50	              </Link>
+    51	              <Link
+    52	                href={`/${locale}/delivery-payment`}
+    53	                className="text-sm font-medium transition-colors hover:text-primary"
+    54	              >
+    55	                {t(locale, 'nav.delivery')}
+    56	              </Link>
+    57	              <Link
+    58	                href={`/${locale}/wholesale`}
+    59	                className="text-sm font-medium transition-colors hover:text-primary"
+    60	              >
+    61	                {t(locale, 'nav.wholesale')}
+    62	              </Link>
+    63	              <Link
+    64	                href={`/${locale}/contacts`}
+    65	                className="text-sm font-medium transition-colors hover:text-primary"
+    66	              >
+    67	                {t(locale, 'nav.contacts')}
+    68	              </Link>
+    69	            </nav>
+    70	          </div>
+    71	
+    72	          <div className="flex items-center gap-4">
+    73	            <div className="hidden sm:flex items-center gap-3">
+    74	              <a
+    75	                href={settings.instagram_url}
+    76	                target="_blank"
+    77	                rel="noopener noreferrer"
+    78	                className="text-black/90 hover:text-primary transition-colors"
+    79	              >
+    80	                <Instagram className="h-5 w-5" />
+    81	              </a>
+    82	              <a
+    83	                href={settings.facebook_url}
+    84	                target="_blank"
+    85	                rel="noopener noreferrer"
+    86	                className="text-black/90 hover:text-primary transition-colors"
+    87	              >
+    88	                <Facebook className="h-5 w-5" />
+    89	              </a>
+    90	              <a
+    91	                href={`tel:${settings.phone}`}
+    92	                className="text-black/90 hover:text-primary transition-colors"
+    93	              >
+    94	                <Phone className="h-5 w-5" />
+    95	              </a>
+    96	            </div>
+    97	
+    98	            <Button
+    99	              variant="ghost"
+   100	              size="sm"
+   101	              onClick={switchLocale}
+   102	              className="text-sm font-medium"
+   103	            >
+   104	              {locale === 'uk' ? 'RU' : 'UA'}
+   105	            </Button>
+   106	
+   107	            <Button
+   108	              variant="ghost"
+   109	              size="sm"
+   110	              onClick={() => setMobileMenuOpen(true)}
+   111	              className="md:hidden"
+   112	              aria-label="Open menu"
+   113	            >
+   114	              <Menu className="h-5 w-5" />
+   115	            </Button>
+   116	          </div>
+   117	        </div>
+   118	      </header>
+   119	
+   120	      {/* Mobile Menu Overlay */}
+   121	      {mobileMenuOpen && (
+   122	        <div
+   123	          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xl-xl-sm md:hidden"
+   124	          onClick={closeMobileMenu}
+   125	          aria-hidden="true"
+   126	        />
+   127	      )}
+   128	
+   129	      {/* Mobile Menu Drawer */}
+   130	      <div
+   131	        className={`fixed top-0 right-0 bottom-0 z-50 w-80 max-w-[85vw] bg-background shadow-xl transform transition-transform duration-300 ease-in-out md:hidden ${
+   132	          mobileMenuOpen ? 'translate-x-0' : 'translate-x-full'
+   133	        }`}
+   134	      >
+   135	        <div className="flex flex-col h-full">
+   136	          <div className="flex items-center justify-between p-4 border-b">
+   137	            <span className="font-semibold text-lg">{settings.brand_name}</span>
+   138	            <Button
+   139	              variant="ghost"
+   140	              size="sm"
+   141	              onClick={closeMobileMenu}
+   142	              aria-label="Close menu"
+   143	            >
+   144	              <X className="h-5 w-5" />
+   145	            </Button>
+   146	          </div>
+   147	
+   148	          <nav className="flex flex-col p-6 gap-4 flex-1">
+   149	            <Link
+   150	              href={`/${locale}/catalog`}
+   151	              onClick={closeMobileMenu}
+   152	              className="text-base font-medium py-3 border-b transition-colors hover:text-primary"
+   153	            >
+   154	              {t(locale, 'nav.catalog')}
+   155	            </Link>
+   156	            <Link
+   157	              href={`/${locale}/delivery-payment`}
+   158	              onClick={closeMobileMenu}
+   159	              className="text-base font-medium py-3 border-b transition-colors hover:text-primary"
+   160	            >
+   161	              {t(locale, 'nav.delivery')}
+   162	            </Link>
+   163	            <Link
+   164	              href={`/${locale}/wholesale`}
+   165	              onClick={closeMobileMenu}
+   166	              className="text-base font-medium py-3 border-b transition-colors hover:text-primary"
+   167	            >
+   168	              {t(locale, 'nav.wholesale')}
+   169	            </Link>
+   170	            <Link
+   171	              href={`/${locale}/contacts`}
+   172	              onClick={closeMobileMenu}
+   173	              className="text-base font-medium py-3 border-b transition-colors hover:text-primary"
+   174	            >
+   175	              {t(locale, 'nav.contacts')}
+   176	            </Link>
+   177	
+   178	            <div className="flex items-center gap-4 mt-6 pt-6 border-t">
+   179	              <a
+   180	                href={settings.instagram_url}
+   181	                target="_blank"
+   182	                rel="noopener noreferrer"
+   183	                className="text-black/90 hover:text-primary transition-colors"
+   184	                aria-label="Instagram"
+   185	              >
+   186	                <Instagram className="h-6 w-6" />
+   187	              </a>
+   188	              <a
+   189	                href={settings.facebook_url}
+   190	                target="_blank"
+   191	                rel="noopener noreferrer"
+   192	                className="text-black/90 hover:text-primary transition-colors"
+   193	                aria-label="Facebook"
+   194	              >
+   195	                <Facebook className="h-6 w-6" />
+   196	              </a>
+   197	              <a
+   198	                href={`tel:${settings.phone}`}
+   199	                className="text-black/90 hover:text-primary transition-colors"
+   200	                aria-label="Phone"
+   201	              >
+   202	                <Phone className="h-6 w-6" />
+   203	              </a>
+   204	            </div>
+   205	          </nav>
+   206	        </div>
+   207	      </div>
+   208	    </>
+   209	  )
+   210	}

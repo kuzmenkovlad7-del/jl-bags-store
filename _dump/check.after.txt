@@ -1,0 +1,35 @@
+app/layout.tsx:12:    icon: "/favicon.svg",
+app/globals.css:130:  .fx-progress {
+app/globals.css:182:  .fx .fx-progress {
+app/globals.css:272:.fx .fx-progress {
+app/globals.css:323:.fx .fx-progress {
+app/globals.css:396:.fx .fx-progress {
+components/ui/button.tsx:22:        icon: "h-10 w-10",
+app/[locale]/page.tsx:3:import HeroSlider from "@/components/ui/hero-slider";
+app/[locale]/page.tsx:26:  { slug: 'ryukzak_ekoshkira', name_uk: 'Рюкзак екошкіра', name_ru: 'Рюкзак экокожа', icon: Backpack },
+app/[locale]/page.tsx:27:  { slug: 'ryukzak_tekstil', name_uk: 'Рюкзак текстиль', name_ru: 'Рюкзак текстиль', icon: Backpack },
+app/[locale]/page.tsx:28:  { slug: 'shkilnyi_ryukzak', name_uk: 'Шкільний рюкзак', name_ru: 'Школьный рюкзак', icon: Backpack },
+app/[locale]/page.tsx:29:  { slug: 'klatch_krosbodi', name_uk: 'Клатч кросбоді', name_ru: 'Клатч кроссбоди', icon: ShoppingBag },
+app/[locale]/page.tsx:30:  { slug: 'sumka_ekoshkira', name_uk: 'Сумка екошкіра', name_ru: 'Сумка экокожа', icon: ShoppingBag },
+app/[locale]/page.tsx:31:  { slug: 'sumka_stobana', name_uk: 'Сумка стьобана', name_ru: 'Сумка стеганая', icon: ShoppingBag },
+app/[locale]/page.tsx:32:  { slug: 'bananka', name_uk: 'Бананка', name_ru: 'Бананка', icon: Package },
+app/[locale]/page.tsx:33:  { slug: 'sumka_tekstil', name_uk: 'Сумка текстиль', name_ru: 'Сумка текстиль', icon: ShoppingBag },
+app/[locale]/page.tsx:34:  { slug: 'rozprodazh', name_uk: 'Розпродаж', name_ru: 'Распродажа', icon: Tag },
+app/[locale]/page.tsx:35:  { slug: 'cholovicha_sumka', name_uk: 'Чоловіча сумка', name_ru: 'Мужская сумка', icon: ShoppingBag },
+app/[locale]/page.tsx:36:  { slug: 'gamanets_zhinochyi', name_uk: 'Гаманець жіночий', name_ru: 'Кошелек женский', icon: Wallet },
+app/[locale]/page.tsx:37:  { slug: 'gamanets_cholovichyi', name_uk: 'Гаманець чоловічий', name_ru: 'Кошелек мужской', icon: Wallet },
+app/[locale]/page.tsx:108:      <HeroSlider locale={locale} slides={heroSlides} />
+components/ui/hero-slider.tsx:29:interface HeroSliderProps {
+components/ui/hero-slider.tsx:35:const fallbackBackgrounds = [
+components/ui/hero-slider.tsx:47:      background: fallbackBackgrounds[0],
+components/ui/hero-slider.tsx:57:      background: fallbackBackgrounds[1],
+components/ui/hero-slider.tsx:67:      background: fallbackBackgrounds[2],
+components/ui/hero-slider.tsx:78:export default function HeroSlider({ slides = [], locale = 'uk', className = '' }: HeroSliderProps) {
+components/ui/full-screen-scroll-fx.tsx:586:                    <div className='fx-progress'>
+components/ui/full-screen-scroll-fx.tsx:587:                      <div className='fx-progress-numbers'>
+components/ui/full-screen-scroll-fx.tsx:591:                      <div className='fx-progress-bar'>
+components/ui/full-screen-scroll-fx.tsx:592:                        <div className='fx-progress-fill' ref={progressFillRef} />
+components/ui/full-screen-scroll-fx.tsx:821:          .fx-progress {
+components/ui/full-screen-scroll-fx.tsx:829:          .fx-progress-fill {
+components/ui/full-screen-scroll-fx.tsx:838:          .fx-progress-numbers {
+components/ui/full-screen-scroll-fx.tsx:903:            .fx-progress {
