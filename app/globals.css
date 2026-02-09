@@ -49,3 +49,7 @@ header.sticky.top-0.z-40 * {
 header.sticky.top-0.z-40 svg {
   stroke: #111 !important;
 }
+
+.dark {
+  --muted-foreground: var(--light-100);
+}

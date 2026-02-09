@@ -1,6 +1,7 @@
 'use client';
 
 import { HomeFaqSection } from '@/components/ui/home-faq-section';
+import { TestimonialSlider } from '@/components/ui/testimonial-slider';
 import { HomeHitsSection } from '@/components/ui/home-hits-section';
 import HeroSlider from '@/components/ui/hero-slider';
 
@@ -147,6 +148,7 @@ export default function HomePage({
         </div>
       </section>
 
+      <TestimonialSlider locale={locale} />
       <HomeFaqSection locale={locale} />
 
       <section className="py-20 md:py-28 bg-white">
