@@ -195,10 +195,10 @@ export function AboutUsSection({ locale }: AboutUsSectionProps) {
             <span>{t.badge}</span>
           </div>
 
-          <h2 className="mt-4 text-6xl font-bold leading-none md:text-7xl">{t.title}</h2>
+          <h2 className="text-5xl md:text-6xl font-extrabold tracking-tight text-black">{t.title}</h2>
           <div className="mx-auto mt-4 h-[4px] w-32 rounded-full bg-black/45" />
 
-          <p className="mx-auto mt-8 max-w-4xl text-center text-[clamp(22px,3.1vw,56px)] leading-[1.15] font-normal text-black/65">{t.subtitle}</p>
+          <p className="mx-auto mt-6 max-w-4xl text-center text-[clamp(18px,2.2vw,34px)] leading-[1.28] font-normal text-black/65">{t.subtitle}</p>
         </div>
 
         <div className="mt-10 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px_minmax(0,1fr)] xl:items-start">
