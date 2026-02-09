@@ -1,913 +1,793 @@
 'use client'
 
 import React, {
-  CSSProperties,
-  ReactNode,
-  forwardRef,
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
+ CSSProperties,
+ ReactNode,
+ forwardRef,
+ useEffect,
+ useImperativeHandle,
+ useLayoutEffect,
+ useRef,
+ useState,
 } from 'react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 
 if (typeof window !== 'undefined') {
-  gsap.registerPlugin(ScrollTrigger)
+ gsap.registerPlugin(ScrollTrigger)
 }
 
 type Section = {
-  id?: string
-  background: string
-  leftLabel?: ReactNode
-  title: string | ReactNode
-  rightLabel?: ReactNode
-  renderBackground?: (active: boolean, previous: boolean) => ReactNode
+ id?: string
+ background: string
+ leftLabel?: ReactNode
+ title: string | ReactNode
+ rightLabel?: ReactNode
+ ctaLabel?: ReactNode
+ ctaHref?: string
+ renderBackground?: (active: boolean, previous: boolean) => ReactNode
 }
 
 type Colors = Partial<{
-  text: string
-  overlay: string
-  pageBg: string
-  stageBg: string
+ text: string
+ overlay: string
+ pageBg: string
+ stageBg: string
 }>
 
 type Durations = Partial<{
-  change: number
-  snap: number
+ change: number
+ snap: number
 }>
 
 export type FullScreenFXAPI = {
-  next: () => void
-  prev: () => void
-  goTo: (index: number) => void
-  getIndex: () => number
-  refresh: () => void
+ next: () => void
+ prev: () => void
+ goTo: (index: number) => void
+ getIndex: () => number
+ refresh: () => void
 }
 
 export type FullScreenFXProps = {
-  sections: Section[]
-  className?: string
-  style?: CSSProperties
-  fontFamily?: string
-  header?: ReactNode
-  footer?: ReactNode
-  gap?: number
-  gridPaddingX?: number
-  showProgress?: boolean
-  debug?: boolean
-  durations?: Durations
-  reduceMotion?: boolean
-  smoothScroll?: boolean
-  bgTransition?: 'fade' | 'wipe'
-  parallaxAmount?: number
-  currentIndex?: number
-  onIndexChange?: (index: number) => void
-  initialIndex?: number
-  colors?: Colors
-  apiRef?: React.Ref<FullScreenFXAPI>
-  ariaLabel?: string
+ sections: Section[]
+ className?: string
+ style?: CSSProperties
+ fontFamily?: string
+ headerFontFamily?: string
+ headerFontWeight?: number
+ header?: ReactNode
+ gap?: number
+ gridPaddingX?: number
+ showProgress?: boolean
+ debug?: boolean
+ durations?: Durations
+ reduceMotion?: boolean
+ bgTransition?: 'fade' | 'wipe'
+ parallaxAmount?: number
+ currentIndex?: number
+ onIndexChange?: (index: number) => void
+ initialIndex?: number
+ colors?: Colors
+ apiRef?: React.Ref<FullScreenFXAPI>
+ ariaLabel?: string
 }
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n))
 
 export const FullScreenScrollFX = forwardRef<HTMLDivElement, FullScreenFXProps>(
-  (
-    {
-      sections,
-      className,
-      style,
-      fontFamily = '"Rubik Wide", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif',
-      header,
-      footer,
-      gap = 1,
-      gridPaddingX = 2,
-      showProgress = true,
-      debug = false,
-      durations = { change: 0.72, snap: 800 },
-      reduceMotion,
-      smoothScroll = false,
-      bgTransition = 'fade',
-      parallaxAmount = 4,
-      currentIndex,
-      onIndexChange,
-      initialIndex = 0,
-      colors = {
-        text: 'rgba(245,245,245,0.96)',
-        overlay: 'rgba(0,0,0,0.45)',
-        pageBg: '#000000',
-        stageBg: '#000000',
-      },
-      apiRef,
-      ariaLabel = 'Full screen scroll slideshow',
-    },
-    ref
-  ) => {
-    const safeSections = useMemo<Section[]>(
-      () =>
-        sections && sections.length
-          ? sections
-          : [
-              {
-                id: 'fallback',
-                background: '/branding/logo-round.png',
-                title: 'JULIA LEBEDEVA COLLECTION',
-                leftLabel: '',
-                rightLabel: '',
-              },
-            ],
-      [sections]
-    )
+ (
+  {
+   sections,
+   className,
+   style,
+   fontFamily = '"Rubik", "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif',
+   headerFontFamily = '"Inter", "Helvetica Neue", Arial, sans-serif',
+   headerFontWeight = 320,
+   header,
+   gap = 1,
+   gridPaddingX = 2,
+   showProgress = true,
+   debug = false,
+   durations = { change: 0.72, snap: 900 },
+   reduceMotion,
+   bgTransition = 'fade',
+   parallaxAmount = 4,
+   currentIndex,
+   onIndexChange,
+   initialIndex = 0,
+   colors = {
+    text: 'rgba(245,245,245,0.96)',
+    overlay: 'rgba(0,0,0,0.30)',
+    pageBg: '#000000',
+    stageBg: '#000000',
+   },
+   apiRef,
+   ariaLabel = 'Full screen scroll slideshow',
+  },
+  ref
+ ) => {
+  const total = sections.length
+  const [localIndex, setLocalIndex] = useState(clamp(initialIndex, 0, Math.max(0, total - 1)))
+  const isControlled = typeof currentIndex === 'number'
+  const index = isControlled ? clamp(currentIndex!, 0, Math.max(0, total - 1)) : localIndex
 
-    const total = safeSections.length
-    const [localIndex, setLocalIndex] = useState(clamp(initialIndex, 0, Math.max(0, total - 1)))
-    const isControlled = typeof currentIndex === 'number'
-    const index = isControlled ? clamp(currentIndex as number, 0, Math.max(0, total - 1)) : localIndex
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const fixedRef = useRef<HTMLDivElement | null>(null)
+  const fixedSectionRef = useRef<HTMLDivElement | null>(null)
 
-    useEffect(() => {
-      if (!isControlled && localIndex > total - 1) setLocalIndex(Math.max(0, total - 1))
-    }, [isControlled, localIndex, total])
+  const bgRefs = useRef<HTMLImageElement[]>([])
+  const titleRefs = useRef<HTMLHeadingElement[]>([])
 
-    const rootRef = useRef<HTMLDivElement | null>(null)
-    const fixedRef = useRef<HTMLDivElement | null>(null)
-    const fixedSectionRef = useRef<HTMLDivElement | null>(null)
+  const progressFillRef = useRef<HTMLDivElement | null>(null)
+  const currentNumberRef = useRef<HTMLSpanElement | null>(null)
 
-    const bgRefs = useRef<HTMLImageElement[]>([])
-    const featuredRefs = useRef<HTMLDivElement[]>([])
+  const sectionTopRef = useRef<number[]>([])
+  const stRef = useRef<ScrollTrigger | null>(null)
+  const lastIndexRef = useRef(index)
+  const isAnimatingRef = useRef(false)
 
-    const leftTrackRef = useRef<HTMLDivElement | null>(null)
-    const rightTrackRef = useRef<HTMLDivElement | null>(null)
-    const leftItemRefs = useRef<HTMLDivElement[]>([])
-    const rightItemRefs = useRef<HTMLDivElement[]>([])
+  const prefersReduced =
+   typeof window !== 'undefined'
+    ? window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+    : false
+  const motionOff = reduceMotion ?? prefersReduced
 
-    const progressFillRef = useRef<HTMLDivElement | null>(null)
-    const currentNumberRef = useRef<HTMLSpanElement | null>(null)
+  const setProgress = (i: number) => {
+   if (currentNumberRef.current) currentNumberRef.current.textContent = String(i + 1).padStart(2, '0')
+   if (progressFillRef.current) {
+    const p = (i / (total - 1 || 1)) * 100
+    progressFillRef.current.style.width = `${p}%`
+   }
+  }
 
-    const stRef = useRef<ScrollTrigger | null>(null)
-    const lastIndexRef = useRef(index)
-    const isAnimatingRef = useRef(false)
-    const isSnappingRef = useRef(false)
-    const sectionTopRef = useRef<number[]>([])
+  const computePositions = () => {
+   const el = fixedSectionRef.current
+   if (!el || total === 0) return
+   const top = el.offsetTop
+   const h = el.offsetHeight
+   const arr: number[] = []
+   for (let i = 0; i < total; i++) arr.push(top + (h * i) / total)
+   sectionTopRef.current = arr
+  }
 
-    const prefersReduced = useMemo(() => {
-      if (typeof window === 'undefined') return false
-      return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
-    }, [])
-    const motionOff = reduceMotion ?? prefersReduced
+  const changeSection = (to: number) => {
+   if (to === lastIndexRef.current || isAnimatingRef.current || total === 0) return
 
-    const setProgress = useCallback(
-      (i: number) => {
-        if (currentNumberRef.current) {
-          currentNumberRef.current.textContent = String(i + 1).padStart(2, '0')
-        }
-        if (progressFillRef.current) {
-          const p = (i / (total - 1 || 1)) * 100
-          progressFillRef.current.style.width = `${p}%`
-        }
-      },
-      [total]
-    )
+   const from = lastIndexRef.current
+   const down = to > from
+   const D = durations.change ?? 0.72
+   isAnimatingRef.current = true
 
-    const computePositions = useCallback(() => {
-      const fs = fixedSectionRef.current
-      if (!fs) return
-      const top = fs.offsetTop
-      const h = fs.offsetHeight
-      const arr: number[] = []
-      for (let i = 0; i < total; i++) arr.push(top + (h * i) / total)
-      sectionTopRef.current = arr
-    }, [total])
+   if (!isControlled) setLocalIndex(to)
+   onIndexChange?.(to)
+   setProgress(to)
 
-    const measureAndCenterLists = useCallback(
-      (toIndex = index, animate = true) => {
-        const centerTrack = (container: HTMLDivElement | null, items: HTMLDivElement[], track: HTMLDivElement | null) => {
-          if (!container || !track || items.length === 0) return
-          const first = items[0]
-          const second = items[1]
-          const contRect = container.getBoundingClientRect()
-          let rowH = first.getBoundingClientRect().height
-          if (second) rowH = second.getBoundingClientRect().top - first.getBoundingClientRect().top
-          const targetY = contRect.height / 2 - rowH / 2 - toIndex * rowH
-          if (animate) {
-            gsap.to(track, {
-              y: targetY,
-              duration: (durations.change ?? 0.72) * 0.9,
-              ease: 'power3.out',
-            })
-          } else {
-            gsap.set(track, { y: targetY })
-          }
-        }
+   const outTitle = titleRefs.current[from]
+   const inTitle = titleRefs.current[to]
 
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            centerTrack(leftTrackRef.current, leftItemRefs.current, leftTrackRef.current)
-            centerTrack(rightTrackRef.current, rightItemRefs.current, rightTrackRef.current)
-          })
-        })
-      },
-      [durations.change, index]
-    )
+   if (motionOff) {
+    if (outTitle) gsap.set(outTitle, { opacity: 0, y: 0 })
+    if (inTitle) gsap.set(inTitle, { opacity: 1, y: 0 })
+    const prevBg = bgRefs.current[from]
+    const nextBg = bgRefs.current[to]
+    if (prevBg) gsap.set(prevBg, { opacity: 0, yPercent: 0, scale: 1 })
+    if (nextBg) gsap.set(nextBg, { opacity: 1, yPercent: 0, scale: 1 })
+    lastIndexRef.current = to
+    isAnimatingRef.current = false
+    return
+   }
 
-    const changeSection = useCallback(
-      (to: number) => {
-        const target = clamp(to, 0, total - 1)
-        if (target === lastIndexRef.current || isAnimatingRef.current) return
+   if (outTitle) {
+    gsap.to(outTitle, {
+     y: down ? -18 : 18,
+     opacity: 0,
+     duration: D * 0.55,
+     ease: 'power3.out',
+    })
+   }
 
-        const from = lastIndexRef.current
-        const down = target > from
-        const D = durations.change ?? 0.72
+   if (inTitle) {
+    gsap.set(inTitle, { y: down ? 18 : -18, opacity: 0 })
+    gsap.to(inTitle, {
+     y: 0,
+     opacity: 1,
+     duration: D * 0.9,
+     ease: 'power3.out',
+    })
+   }
 
-        isAnimatingRef.current = true
+   const prevBg = bgRefs.current[from]
+   const nextBg = bgRefs.current[to]
 
-        if (!isControlled) setLocalIndex(target)
-        onIndexChange?.(target)
-        setProgress(target)
-
-        const outTitle = featuredRefs.current[from]
-        const inTitle = featuredRefs.current[target]
-
-        if (outTitle) {
-          gsap.to(outTitle, {
-            opacity: 0,
-            y: down ? -20 : 20,
-            duration: D * 0.55,
-            ease: 'power3.out',
-          })
-        }
-        if (inTitle) {
-          gsap.fromTo(
-            inTitle,
-            { opacity: 0, y: down ? 20 : -20 },
-            { opacity: 1, y: 0, duration: D, ease: 'power3.out' }
-          )
-        }
-
-        const prevBg = bgRefs.current[from]
-        const newBg = bgRefs.current[target]
-
-        if (bgTransition === 'fade') {
-          if (newBg) {
-            gsap.set(newBg, { opacity: 0, scale: 1.04, yPercent: down ? 1 : -1 })
-            gsap.to(newBg, {
-              opacity: 1,
-              scale: 1,
-              yPercent: 0,
-              duration: D,
-              ease: 'power2.out',
-            })
-          }
-          if (prevBg) {
-            gsap.to(prevBg, {
-              opacity: 0,
-              yPercent: down ? -parallaxAmount : parallaxAmount,
-              duration: D,
-              ease: 'power2.out',
-            })
-          }
-        } else {
-          if (newBg) {
-            gsap.set(newBg, {
-              opacity: 1,
-              clipPath: down ? 'inset(100% 0 0 0)' : 'inset(0 0 100% 0)',
-              scale: 1,
-              yPercent: 0,
-            })
-            gsap.to(newBg, {
-              clipPath: 'inset(0 0 0 0)',
-              duration: D,
-              ease: 'power3.out',
-            })
-          }
-          if (prevBg) {
-            gsap.to(prevBg, { opacity: 0, duration: D * 0.8, ease: 'power2.out' })
-          }
-        }
-
-        measureAndCenterLists(target, true)
-
-        leftItemRefs.current.forEach((el, i) => {
-          el.classList.toggle('active', i === target)
-          gsap.to(el, {
-            opacity: i === target ? 1 : 0.35,
-            x: i === target ? 10 : 0,
-            duration: D * 0.6,
-            ease: 'power3.out',
-          })
-        })
-
-        rightItemRefs.current.forEach((el, i) => {
-          el.classList.toggle('active', i === target)
-          gsap.to(el, {
-            opacity: i === target ? 1 : 0.35,
-            x: i === target ? -10 : 0,
-            duration: D * 0.6,
-            ease: 'power3.out',
-          })
-        })
-
-        gsap.delayedCall(D, () => {
-          lastIndexRef.current = target
-          isAnimatingRef.current = false
-        })
-      },
-      [
-        bgTransition,
-        durations.change,
-        isControlled,
-        measureAndCenterLists,
-        onIndexChange,
-        parallaxAmount,
-        setProgress,
-        total,
-      ]
-    )
-
-    const goTo = useCallback(
-      (to: number, withScroll = true) => {
-        const target = clamp(to, 0, total - 1)
-        isSnappingRef.current = true
-        changeSection(target)
-
-        const pos = sectionTopRef.current[target]
-        const snapMs = durations.snap ?? 800
-
-        if (withScroll && typeof window !== 'undefined' && Number.isFinite(pos)) {
-          if (smoothScroll) {
-            window.scrollTo({ top: pos, behavior: 'smooth' })
-          } else {
-            window.scrollTo({ top: pos, behavior: 'smooth' })
-          }
-          window.setTimeout(() => {
-            isSnappingRef.current = false
-          }, snapMs)
-        } else {
-          window.setTimeout(() => {
-            isSnappingRef.current = false
-          }, 10)
-        }
-      },
-      [changeSection, durations.snap, smoothScroll, total]
-    )
-
-    const next = useCallback(() => goTo(index + 1), [goTo, index])
-    const prev = useCallback(() => goTo(index - 1), [goTo, index])
-
-    useImperativeHandle(
-      apiRef,
-      () => ({
-        next,
-        prev,
-        goTo: (i: number) => goTo(i, true),
-        getIndex: () => index,
-        refresh: () => ScrollTrigger.refresh(),
-      }),
-      [goTo, index, next, prev]
-    )
-
-    useLayoutEffect(() => {
-      if (typeof window === 'undefined') return
-      const fixed = fixedRef.current
-      const fs = fixedSectionRef.current
-      if (!fixed || !fs || total === 0) return
-
-      gsap.set(bgRefs.current, { opacity: 0, scale: 1.04, yPercent: 0 })
-      if (bgRefs.current[0]) gsap.set(bgRefs.current[0], { opacity: 1, scale: 1 })
-
-      featuredRefs.current.forEach((el, i) => {
-        gsap.set(el, {
-          opacity: i === index ? 1 : 0,
-          y: 0,
-        })
-      })
-
-      computePositions()
-      measureAndCenterLists(index, false)
-      setProgress(index)
-
-      const st = ScrollTrigger.create({
-        trigger: fs,
-        start: 'top top',
-        end: 'bottom bottom',
-        pin: fixed,
-        pinSpacing: true,
-        onUpdate: (self) => {
-          if (motionOff || isSnappingRef.current) return
-          const target = Math.min(total - 1, Math.floor(self.progress * total))
-          if (target !== lastIndexRef.current && !isAnimatingRef.current) {
-            const step = target > lastIndexRef.current ? 1 : -1
-            goTo(lastIndexRef.current + step, false)
-          }
-        },
-      })
-
-      stRef.current = st
-
-      if (initialIndex > 0 && initialIndex < total) {
-        requestAnimationFrame(() => goTo(initialIndex, false))
-      }
-
-      const ro = new ResizeObserver(() => {
-        computePositions()
-        measureAndCenterLists(lastIndexRef.current, false)
-        ScrollTrigger.refresh()
-      })
-      ro.observe(fs)
-
-      return () => {
-        ro.disconnect()
-        st.kill()
-        stRef.current = null
-      }
-    }, [computePositions, goTo, index, initialIndex, measureAndCenterLists, motionOff, setProgress, total])
-
-    useEffect(() => {
-      leftItemRefs.current.forEach((el, i) => {
-        gsap.fromTo(
-          el,
-          { opacity: 0, y: 18 },
-          {
-            opacity: i === index ? 1 : 0.35,
-            y: 0,
-            duration: 0.45,
-            delay: i * 0.05,
-            ease: 'power3.out',
-          }
-        )
-      })
-
-      rightItemRefs.current.forEach((el, i) => {
-        gsap.fromTo(
-          el,
-          { opacity: 0, y: 18 },
-          {
-            opacity: i === index ? 1 : 0.35,
-            y: 0,
-            duration: 0.45,
-            delay: 0.12 + i * 0.05,
-            ease: 'power3.out',
-          }
-        )
-      })
-
-      measureAndCenterLists(index, false)
-      setProgress(index)
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
-
-    const cssVars: CSSProperties = {
-      ['--fx-font' as any]: fontFamily,
-      ['--fx-text' as any]: colors.text ?? 'rgba(245,245,245,0.96)',
-      ['--fx-overlay' as any]: colors.overlay ?? 'rgba(0,0,0,0.45)',
-      ['--fx-page-bg' as any]: colors.pageBg ?? '#000000',
-      ['--fx-stage-bg' as any]: colors.stageBg ?? '#000000',
-      ['--fx-gap' as any]: `${gap}rem`,
-      ['--fx-grid-px' as any]: `${gridPaddingX}rem`,
-      ['--fx-row-gap' as any]: '10px',
+   if (bgTransition === 'fade') {
+    if (nextBg) {
+     gsap.set(nextBg, { opacity: 0, scale: 1.03, yPercent: down ? 1 : -1 })
+     gsap.to(nextBg, { opacity: 1, scale: 1, yPercent: 0, duration: D, ease: 'power2.out' })
     }
+    if (prevBg) {
+     gsap.to(prevBg, {
+      opacity: 0,
+      yPercent: down ? -parallaxAmount : parallaxAmount,
+      duration: D,
+      ease: 'power2.out',
+     })
+    }
+   } else {
+    if (nextBg) {
+     gsap.set(nextBg, {
+      opacity: 1,
+      clipPath: down ? 'inset(100% 0 0 0)' : 'inset(0 0 100% 0)',
+     })
+     gsap.to(nextBg, { clipPath: 'inset(0 0 0 0)', duration: D, ease: 'power3.out' })
+    }
+    if (prevBg) gsap.to(prevBg, { opacity: 0, duration: D * 0.8, ease: 'power2.out' })
+   }
 
-    const handleJump = (i: number) => goTo(i, true)
+   gsap.delayedCall(D, () => {
+    lastIndexRef.current = to
+    isAnimatingRef.current = false
+   })
+  }
 
-    return (
-      <div
-        ref={(node) => {
-          ;(rootRef as React.MutableRefObject<HTMLDivElement | null>).current = node
-          if (typeof ref === 'function') ref(node)
-          else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node
-        }}
-        className={['fx', className].filter(Boolean).join(' ')}
-        style={{ ...cssVars, ...style }}
-        aria-label={ariaLabel}
-      >
-        {debug && <div className='fx-debug'>Section: {index}</div>}
+  const goTo = (to: number) => {
+   const clamped = clamp(to, 0, total - 1)
+   if (clamped === lastIndexRef.current) return
+   changeSection(clamped)
+   const pos = sectionTopRef.current[clamped]
+   if (typeof window !== 'undefined' && typeof pos === 'number') {
+    window.scrollTo({ top: pos, behavior: 'smooth' })
+   }
+  }
 
-        <div className='fx-scroll'>
-          <div className='fx-fixed-section' ref={fixedSectionRef}>
-            <div className='fx-fixed' ref={fixedRef}>
-              <div className='fx-bgs' aria-hidden='true'>
-                {safeSections.map((s, i) => (
-                  <div className='fx-bg' key={s.id ?? i}>
-                    {s.renderBackground ? (
-                      s.renderBackground(index === i, lastIndexRef.current === i)
-                    ) : (
-                      <>
-                        <img
-                          ref={(el) => {
-                            if (el) bgRefs.current[i] = el
-                          }}
-                          src={s.background}
-                          alt=''
-                          className='fx-bg-img'
-                        />
-                        <div className='fx-bg-overlay' />
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
+  useImperativeHandle(apiRef, () => ({
+   next: () => goTo(index + 1),
+   prev: () => goTo(index - 1),
+   goTo,
+   getIndex: () => index,
+   refresh: () => ScrollTrigger.refresh(),
+  }))
 
-              <div className='fx-grid'>
-                {header ? <div className='fx-header'>{header}</div> : null}
+  useLayoutEffect(() => {
+   if (typeof window === 'undefined') return
+   const fixed = fixedRef.current
+   const fs = fixedSectionRef.current
+   if (!fixed || !fs || total === 0) return
 
-                <div className='fx-content'>
-                  <div className='fx-left' role='list'>
-                    <div className='fx-track' ref={leftTrackRef}>
-                      {safeSections.map((s, i) => (
-                        <div
-                          key={`L-${s.id ?? i}`}
-                          className={`fx-item fx-left-item ${i === index ? 'active' : ''}`}
-                          ref={(el) => {
-                            if (el) leftItemRefs.current[i] = el
-                          }}
-                          onClick={() => handleJump(i)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault()
-                              handleJump(i)
-                            }
-                          }}
-                          role='button'
-                          tabIndex={0}
-                          aria-pressed={i === index}
-                        >
-                          {s.leftLabel}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+   lastIndexRef.current = index
 
-                  <div className='fx-center'>
-                    {safeSections.map((s, sIdx) => (
-                      <div
-                        key={`C-${s.id ?? sIdx}`}
-                        className={`fx-featured ${sIdx === index ? 'active' : ''}`}
-                        ref={(el) => {
-                          if (el) featuredRefs.current[sIdx] = el
-                        }}
-                      >
-                        <h3 className='fx-featured-title'>{s.title}</h3>
-                      </div>
-                    ))}
-                  </div>
+   const validBgs = bgRefs.current.filter(Boolean)
+   const validTitles = titleRefs.current.filter(Boolean)
 
-                  <div className='fx-right' role='list'>
-                    <div className='fx-track' ref={rightTrackRef}>
-                      {safeSections.map((s, i) => (
-                        <div
-                          key={`R-${s.id ?? i}`}
-                          className={`fx-item fx-right-item ${i === index ? 'active' : ''}`}
-                          ref={(el) => {
-                            if (el) rightItemRefs.current[i] = el
-                          }}
-                          onClick={() => handleJump(i)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault()
-                              handleJump(i)
-                            }
-                          }}
-                          role='button'
-                          tabIndex={0}
-                          aria-pressed={i === index}
-                        >
-                          {s.rightLabel}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+   gsap.set(validBgs, { opacity: 0, scale: 1.03, yPercent: 0 })
+   if (bgRefs.current[index]) gsap.set(bgRefs.current[index], { opacity: 1, scale: 1, yPercent: 0 })
 
-                <div className='fx-footer'>
-                  {footer ? <div className='fx-footer-title'>{footer}</div> : null}
-                  {showProgress ? (
-                    <div className='fx-progress'>
-                      <div className='fx-progress-numbers'>
-                        <span ref={currentNumberRef}>{String(index + 1).padStart(2, '0')}</span>
-                        <span>{String(total).padStart(2, '0')}</span>
-                      </div>
-                      <div className='fx-progress-bar'>
-                        <div className='fx-progress-fill' ref={progressFillRef} />
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
+   gsap.set(validTitles, { opacity: 0, y: 18 })
+   if (titleRefs.current[index]) gsap.set(titleRefs.current[index], { opacity: 1, y: 0 })
+
+   setProgress(index)
+   computePositions()
+
+   const st = ScrollTrigger.create({
+    trigger: fs,
+    start: 'top top',
+    end: 'bottom bottom',
+    pin: fixed,
+    pinSpacing: true,
+    onUpdate: (self) => {
+     if (motionOff) return
+     const target = Math.min(total - 1, Math.floor(self.progress * total))
+     if (target !== lastIndexRef.current && !isAnimatingRef.current) {
+      changeSection(target)
+     }
+    },
+   })
+
+   stRef.current = st
+
+   const ro = new ResizeObserver(() => {
+    computePositions()
+    ScrollTrigger.refresh()
+   })
+   ro.observe(fs)
+
+   return () => {
+    ro.disconnect()
+    st.kill()
+    stRef.current = null
+   }
+   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [total, motionOff, bgTransition, parallaxAmount])
+
+  useEffect(() => {
+   setProgress(index)
+  }, [index, total])
+
+  const active = sections[index]
+
+  const cssVars: CSSProperties = {
+   ['--fx-font' as any]: fontFamily,
+   ['--fx-header-font' as any]: headerFontFamily,
+   ['--fx-header-weight' as any]: headerFontWeight,
+   ['--fx-text' as any]: colors.text ?? 'rgba(245,245,245,0.96)',
+   ['--fx-overlay' as any]: colors.overlay ?? 'rgba(0,0,0,0.30)',
+   ['--fx-page-bg' as any]: colors.pageBg ?? '#000000',
+   ['--fx-stage-bg' as any]: colors.stageBg ?? '#000000',
+   ['--fx-gap' as any]: `${gap}rem`,
+   ['--fx-grid-px' as any]: `${gridPaddingX}rem`,
+  }
+
+  return (
+   <div
+    ref={(node) => {
+     ;(rootRef as any).current = node
+     if (typeof ref === 'function') ref(node)
+     else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node
+    }}
+    className={['fx', className].filter(Boolean).join(' ')}
+    style={{ ...cssVars, ...style }}
+    aria-label={ariaLabel}
+   >
+    {debug && <div className="fx-debug">Section: {index + 1}</div>}
+
+    <div className="fx-scroll">
+     <div className="fx-fixed-section" ref={fixedSectionRef}>
+      <div className="fx-fixed" ref={fixedRef}>
+       <div className="fx-bgs" aria-hidden="true">
+        {sections.map((s, i) => (
+         <div className="fx-bg" key={s.id ?? i}>
+          {s.renderBackground ? (
+           s.renderBackground(index === i, lastIndexRef.current === i)
+          ) : (
+           <>
+            <img
+             ref={(el) => {
+              if (el) bgRefs.current[i] = el
+             }}
+             src={s.background}
+             alt=""
+             className="fx-bg-img"
+            />
+            <div className="fx-bg-overlay" />
+           </>
+          )}
+         </div>
+        ))}
+       </div>
+
+       <div className="fx-grid">
+        {header && <div className="fx-header">{header}</div>}
+
+        <div className="fx-content">
+         <div className="fx-left" role="list">
+          <div className="fx-list">
+           {sections.map((s, i) => (
+            <div
+             key={`L-${s.id ?? i}`}
+             className={`fx-item fx-left-item ${i === index ? 'active' : ''}`}
+             onClick={() => goTo(i)}
+             role="button"
+             tabIndex={0}
+             onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+               e.preventDefault()
+               goTo(i)
+              }
+             }}
+             aria-pressed={i === index}
+            >
+             {s.leftLabel}
             </div>
+           ))}
           </div>
+         </div>
 
-          <div className='fx-end' />
+         <div className="fx-center">
+          {sections.map((s, i) => (
+           <div key={`C-${s.id ?? i}`} className={`fx-featured ${i === index ? 'active' : ''}`}>
+            <h3
+             className="fx-featured-title"
+             ref={(el) => {
+              if (el) titleRefs.current[i] = el
+             }}
+            >
+             {s.title}
+            </h3>
+           </div>
+          ))}
+         </div>
+
+         <div className="fx-right" role="list">
+          <div className="fx-list">
+           {sections.map((s, i) => (
+            <div
+             key={`R-${s.id ?? i}`}
+             className={`fx-item fx-right-item ${i === index ? 'active' : ''}`}
+             onClick={() => goTo(i)}
+             role="button"
+             tabIndex={0}
+             onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+               e.preventDefault()
+               goTo(i)
+              }
+             }}
+             aria-pressed={i === index}
+            >
+             {s.rightLabel}
+            </div>
+           ))}
+          </div>
+         </div>
         </div>
 
-        <style jsx>{`
-          .fx {
-            width: 100%;
-            overflow: hidden;
-            background: var(--fx-page-bg);
-            color: #000;
-            font-family: var(--fx-font);
-            letter-spacing: -0.02em;
-          }
+        <div className="fx-footer">
+         {active?.ctaLabel && (
+          <a
+           className="fx-cta"
+           href={active.ctaHref || '#'}
+           aria-label={typeof active.ctaLabel === 'string' ? active.ctaLabel : 'CTA'}
+          >
+           {active.ctaLabel}
+          </a>
+         )}
 
-          .fx-debug {
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
-            z-index: 9999;
-            background: rgba(255, 255, 255, 0.8);
-            color: #000;
-            padding: 6px 8px;
-            font: 12px/1 monospace;
-            border-radius: 4px;
-          }
-
-          .fx-fixed-section {
-            height: ${Math.max(1, total)}00vh;
-            position: relative;
-          }
-
-          .fx-fixed {
-            position: sticky;
-            top: 0;
-            height: 100vh;
-            width: 100%;
-            overflow: hidden;
-            background: var(--fx-page-bg);
-          }
-
-          .fx-grid {
-            display: grid;
-            grid-template-columns: repeat(12, 1fr);
-            gap: var(--fx-gap);
-            padding: 0 var(--fx-grid-px);
-            position: relative;
-            height: 100%;
-            z-index: 2;
-          }
-
-          .fx-bgs {
-            position: absolute;
-            inset: 0;
-            background: var(--fx-stage-bg);
-            z-index: 1;
-          }
-
-          .fx-bg {
-            position: absolute;
-            inset: 0;
-          }
-
-          .fx-bg-img {
-            position: absolute;
-            inset: -10% 0 -10% 0;
-            width: 100%;
-            height: 120%;
-            object-fit: cover;
-            filter: brightness(0.78);
-            opacity: 0;
-            will-change: transform, opacity;
-          }
-
-          .fx-bg-overlay {
-            position: absolute;
-            inset: 0;
-            background: var(--fx-overlay);
-          }
-
-          .fx-header {
-            grid-column: 1 / 13;
-            align-self: start;
-            padding-top: 8vh;
-            font-size: clamp(2rem, 9vw, 8rem);
-            line-height: 0.86;
-            text-align: center;
-            color: var(--fx-text);
-            text-transform: uppercase;
-          }
-
-          .fx-header > * {
-            display: block;
-          }
-
-          .fx-content {
-            grid-column: 1 / 13;
-            position: absolute;
-            inset: 0;
-            display: grid;
-            grid-template-columns: 1fr 1.25fr 1fr;
-            align-items: center;
-            height: 100%;
-            padding: 0 var(--fx-grid-px);
-          }
-
-          .fx-left,
-          .fx-right {
-            height: 60vh;
-            overflow: hidden;
-            display: grid;
-            align-content: center;
-          }
-
-          .fx-left {
-            justify-items: start;
-          }
-
-          .fx-right {
-            justify-items: end;
-          }
-
-          .fx-track {
-            will-change: transform;
-          }
-
-          .fx-item {
-            color: var(--fx-text);
-            font-weight: 800;
-            line-height: 1;
-            margin: calc(var(--fx-row-gap) / 2) 0;
-            opacity: 0.35;
-            transition: opacity 0.3s ease, transform 0.3s ease;
-            position: relative;
-            font-size: clamp(1rem, 2.4vw, 1.8rem);
-            user-select: none;
-            cursor: pointer;
-            text-transform: uppercase;
-          }
-
-          .fx-left-item.active,
-          .fx-right-item.active {
-            opacity: 1;
-          }
-
-          .fx-left-item.active {
-            transform: translateX(10px);
-            padding-left: 16px;
-          }
-
-          .fx-right-item.active {
-            transform: translateX(-10px);
-            padding-right: 16px;
-          }
-
-          .fx-left-item.active::before,
-          .fx-right-item.active::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 6px;
-            height: 6px;
-            background: var(--fx-text);
-            border-radius: 50%;
-          }
-
-          .fx-left-item.active::before {
-            left: 0;
-          }
-
-          .fx-right-item.active::after {
-            right: 0;
-          }
-
-          .fx-center {
-            display: grid;
-            place-items: center;
-            text-align: center;
-            height: 60vh;
-            overflow: hidden;
-          }
-
-          .fx-featured {
-            position: absolute;
-            left: 0;
-            right: 0;
-            margin: 0 auto;
-            opacity: 0;
-            visibility: hidden;
-          }
-
-          .fx-featured.active {
-            opacity: 1;
-            visibility: visible;
-          }
-
-          .fx-featured-title {
-            margin: 0;
-            color: var(--fx-text);
-            font-weight: 900;
-            letter-spacing: -0.01em;
-            font-size: clamp(2rem, 7.8vw, 6rem);
-            line-height: 0.95;
-            text-transform: uppercase;
-            text-wrap: balance;
-          }
-
-          .fx-footer {
-            grid-column: 1 / 13;
-            align-self: end;
-            padding-bottom: 5vh;
-            text-align: center;
-          }
-
-          .fx-footer-title {
-            color: var(--fx-text);
-            font-size: clamp(1rem, 2.6vw, 2.2rem);
-            font-weight: 700;
-            line-height: 1.15;
-          }
-
-          .fx-progress {
-            width: 220px;
-            height: 2px;
-            margin: 0.9rem auto 0;
-            background: rgba(245, 245, 245, 0.28);
-            position: relative;
-          }
-
-          .fx-progress-fill {
-            position: absolute;
-            inset: 0 auto 0 0;
-            width: 0%;
-            background: var(--fx-text);
-            height: 100%;
-            transition: width 0.3s ease;
-          }
-
-          .fx-progress-numbers {
-            position: absolute;
-            inset: auto 0 100% 0;
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.9rem;
-            color: var(--fx-text);
-          }
-
-          .fx-end {
-            display: none;
-            height: 0;
-          }
-
-          @media (max-width: 1024px) {
-            .fx-header {
-              padding-top: 10vh;
-              font-size: clamp(1.9rem, 11.5vw, 5rem);
-            }
-
-            .fx-featured-title {
-              font-size: clamp(2rem, 11vw, 5rem);
-            }
-          }
-
-          @media (max-width: 900px) {
-            .fx-left,
-            .fx-right {
-              display: none;
-            }
-
-            .fx-content {
-              grid-template-columns: 1fr;
-              align-items: end;
-              padding: 0 16px calc(110px + env(safe-area-inset-bottom));
-            }
-
-            .fx-center {
-              min-height: 34vh;
-              height: auto;
-              margin-top: 0;
-            }
-
-            .fx-featured {
-              position: relative;
-              width: 92vw;
-              max-width: 92vw;
-            }
-
-            .fx-featured-title {
-              font-size: clamp(2.02rem, 13.2vw, 4.25rem);
-              line-height: 0.95;
-            }
-
-            .fx-footer {
-              padding-bottom: calc(22px + env(safe-area-inset-bottom));
-            }
-
-            .fx-footer-title {
-              font-size: clamp(0.98rem, 5.1vw, 1.42rem);
-              max-width: 92vw;
-              margin: 0 auto;
-              text-transform: none;
-            }
-
-            .fx-progress {
-              width: min(240px, 62vw);
-            }
-          }
-        `}</style>
+         {showProgress && (
+          <div className="fx-progress">
+           <div className="fx-progress-numbers">
+            <span ref={currentNumberRef}>{String(index + 1).padStart(2, '0')}</span>
+            <span>{String(total).padStart(2, '0')}</span>
+           </div>
+           <div className="fx-progress-bar">
+            <div className="fx-progress-fill" ref={progressFillRef} />
+           </div>
+          </div>
+         )}
+        </div>
+       </div>
       </div>
-    )
-  }
+     </div>
+
+     <div className="fx-end" />
+    </div>
+
+    <style jsx>{`
+     .fx {
+      width: 100%;
+      overflow: hidden;
+      background: var(--fx-page-bg);
+      color: #fff;
+      font-family: var(--fx-font);
+      text-transform: uppercase;
+      letter-spacing: -0.02em;
+     }
+
+     .fx-debug {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      z-index: 9999;
+      background: rgba(255, 255, 255, 0.86);
+      color: #000;
+      padding: 6px 8px;
+      font: 12px/1 monospace;
+      border-radius: 4px;
+     }
+
+     .fx-fixed-section {
+      height: ${Math.max(1, sections.length)}00vh;
+      position: relative;
+     }
+
+     .fx-fixed {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      width: 100%;
+      overflow: hidden;
+      background: var(--fx-page-bg);
+     }
+
+     .fx-bgs {
+      position: absolute;
+      inset: 0;
+      background: var(--fx-stage-bg);
+      z-index: 1;
+     }
+
+     .fx-bg {
+      position: absolute;
+      inset: 0;
+     }
+
+     .fx-bg-img {
+      position: absolute;
+      inset: -8% 0 -8% 0;
+      width: 100%;
+      height: 116%;
+      object-fit: cover;
+      filter: brightness(0.82);
+      opacity: 0;
+      will-change: transform, opacity;
+     }
+
+     .fx-bg-overlay {
+      position: absolute;
+      inset: 0;
+      background: var(--fx-overlay);
+     }
+
+     .fx-grid {
+      position: relative;
+      z-index: 2;
+      height: 100%;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: var(--fx-gap);
+      padding: 0 var(--fx-grid-px);
+     }
+
+     .fx-header {
+      grid-column: 1 / 13;
+      align-self: start;
+      padding-top: clamp(94px, 12vh, 152px);
+      font-family: var(--fx-header-font);
+      font-weight: var(--fx-header-weight);
+      font-size: clamp(2rem, 8vw, 7.4rem);
+      line-height: 0.86;
+      letter-spacing: -0.03em;
+      text-align: center;
+      color: var(--fx-text);
+      max-width: min(94vw, 1240px);
+      margin: 0 auto;
+     }
+
+     .fx-header > * {
+      display: block;
+     }
+
+     .fx-content {
+      grid-column: 1 / 13;
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+     }
+
+     .fx-left,
+     .fx-right {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: clamp(140px, 16vw, 260px);
+      z-index: 4;
+     }
+
+     .fx-left {
+      left: clamp(10px, 2.2vw, 56px);
+      text-align: left;
+     }
+
+     .fx-right {
+      right: clamp(10px, 2.2vw, 56px);
+      text-align: right;
+     }
+
+     .fx-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+     }
+
+     .fx-item {
+      color: var(--fx-text);
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      line-height: 1.02;
+      opacity: 0.34;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      position: relative;
+      font-size: clamp(1.05rem, 2.05vw, 2.35rem);
+      user-select: none;
+      cursor: pointer;
+      white-space: nowrap;
+     }
+
+     .fx-item.active {
+      opacity: 1;
+     }
+
+     .fx-left-item.active {
+      transform: translateX(8px);
+      padding-left: 14px;
+     }
+
+     .fx-right-item.active {
+      transform: translateX(-8px);
+      padding-right: 14px;
+     }
+
+     .fx-left-item.active::before,
+     .fx-right-item.active::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--fx-text);
+     }
+
+     .fx-left-item.active::before {
+      left: 0;
+     }
+
+     .fx-right-item.active::after {
+      right: 0;
+     }
+
+     .fx-center {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      bottom: auto;
+      transform: translate(-50%, 10px);
+      width: min(92vw, 1180px);
+      z-index: 4;
+      text-align: center;
+      display: grid;
+      place-items: center;
+     }
+
+     .fx-featured {
+      position: absolute;
+      inset: auto;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      width: 100%;
+      display: grid;
+      place-items: center;
+     }
+
+     .fx-featured.active {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      position: relative;
+     }
+
+     .fx-featured-title {
+      margin: 0;
+      color: var(--fx-text);
+      font-family: var(--fx-font);
+      font-weight: 820;
+      letter-spacing: -0.02em;
+      line-height: 0.95;
+      font-size: clamp(2.15rem, 5.55vw, 5.55rem);
+      text-align: center;
+      white-space: nowrap;
+      max-width: 100%;
+     }
+
+     .fx-footer {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: clamp(24px, 4.8vh, 60px);
+      z-index: 4;
+      text-align: center;
+     }
+
+     .fx-cta {
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      border-radius: 9999px !important;
+      background: #f5f5f5 !important;
+      color: #121212 !important;
+      border: 1px solid rgba(255, 255, 255, 0.7) !important;
+      padding: 0.84rem 1.58rem !important;
+      font-weight: 700 !important;
+      font-size: clamp(0.95rem, 1.65vw, 1.1rem) !important;
+      line-height: 1 !important;
+      text-decoration: none !important;
+      letter-spacing: -0.01em !important;
+      transition: transform 0.18s ease, opacity 0.18s ease !important;
+      cursor: pointer !important;
+     }
+
+     .fx-cta:hover {
+      transform: translateY(-1px);
+      opacity: 0.95;
+     }
+
+     .fx-progress {
+      width: clamp(220px, 30vw, 420px);
+      max-width: calc(100vw - 48px);
+      margin: 1rem auto 0;
+     }
+
+     .fx-progress-numbers {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      color: var(--fx-text);
+      margin-bottom: 0.42rem;
+      opacity: 0.92;
+     }
+
+     .fx-progress-bar {
+      height: 2px;
+      background: rgba(245, 245, 245, 0.28);
+      position: relative;
+     }
+
+     .fx-progress-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 0%;
+      height: 100%;
+      background: var(--fx-text);
+      transition: width 0.28s ease;
+     }
+
+     .fx-end {
+      height: 0;
+     }
+
+     @media (max-width: 900px) {
+      .fx-header {
+       padding-top: calc(74px + env(safe-area-inset-top));
+       font-size: clamp(1.9rem, 11vw, 3.7rem);
+       line-height: 0.92;
+       max-width: 92vw;
+      }
+
+      .fx-left,
+      .fx-right {
+       display: none;
+      }
+
+      .fx-center {
+       width: 92vw;
+       top: 50%;
+       bottom: auto;
+       transform: translate(-50%, calc(-50% - 9vh));
+      }
+
+      .fx-featured-title {
+       font-size: clamp(1.75rem, 9.3vw, 3.2rem);
+       line-height: 0.96;
+       white-space: normal;
+       text-wrap: balance;
+       max-width: 92vw;
+      }
+
+      .fx-footer {
+       bottom: calc(18px + env(safe-area-inset-bottom));
+      }
+
+      .fx-cta {
+       padding: 0.8rem 1.35rem !important;
+       font-size: 0.98rem !important;
+      }
+
+      .fx-progress {
+       width: min(250px, 66vw);
+       margin-top: 0.9rem;
+      }
+
+      .fx-progress-numbers {
+       font-size: 0.72rem;
+      }
+     }
+    `}</style>
+   </div>
+  )
+ }
 )
 
 FullScreenScrollFX.displayName = 'FullScreenScrollFX'
