@@ -1,3 +1,4 @@
+import RouteScrollReset from '@/components/system/route-scroll-reset'
 import { notFound } from 'next/navigation'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
@@ -41,7 +42,10 @@ export default async function LocaleLayout({
   return (
     <div className="flex min-h-screen flex-col">
       <Header locale={locale} settings={settings} />
-      <main className="flex-1">{children}</main>
+      <main className="flex-1"><>
+      <RouteScrollReset />
+      {children}
+    </></main>
       <Footer locale={locale} settings={settings} />
       <Toaster />
     </div>

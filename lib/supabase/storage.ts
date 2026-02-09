@@ -27,8 +27,17 @@ const EXT_TO_MIME: Record<string, string> = {
   webm: 'video/webm',
 }
 
-function normalizePath(path: string): string {
-  return String(path || '')
+export type UploadedMediaResult = {
+  url: string
+  publicUrl: string
+  storagePath: string
+  path: string
+  mediaType: 'image' | 'video'
+  type: 'image' | 'video'
+}
+
+function normalizePath(input: string): string {
+  return String(input || '')
     .trim()
     .replace(/^\/+/, '')
     .replace(/\/{2,}/g, '/')
@@ -41,32 +50,14 @@ function extFromName(name: string): string {
 }
 
 function inferMime(file: File): string {
-  const t = String(file.type || '').toLowerCase()
-  if (t) return t
+  const explicit = String(file.type || '').toLowerCase()
+  if (explicit) return explicit
   const ext = extFromName(file.name)
   return EXT_TO_MIME[ext] || ''
 }
 
-function sanitizeFileName(name: string): string {
-  const n = String(name || 'file')
-  return n.replace(/[^a-zA-Z0-9._-]/g, '_')
-}
-
-function ensurePath(storagePath: string, file: File): string {
-  const p = normalizePath(storagePath)
-  if (!p) {
-    const ext = extFromName(file.name) || 'bin'
-    return `products/common/${Date.now()}-${crypto.randomUUID()}.${ext}`
-  }
-
-  // если пришла папка, добавляем файл
-  if (p.endsWith('/')) {
-    const ext = extFromName(file.name) || 'bin'
-    const name = sanitizeFileName(file.name || `file.${ext}`)
-    return `${p}${Date.now()}-${name}`
-  }
-
-  return p
+function safePath(input: string): string {
+  return String(input || '').replace(/[^a-zA-Z0-9._/-]/g, '_')
 }
 
 function extractStoragePath(pathOrUrl: string): string {
@@ -81,7 +72,15 @@ function extractStoragePath(pathOrUrl: string): string {
   return normalizePath(val)
 }
 
-export async function uploadFile(file: File, storagePath: string): Promise<string> {
+function withStringCompat(result: UploadedMediaResult): any {
+  const obj: any = { ...result }
+  obj.toString = () => result.publicUrl
+  obj.valueOf = () => result.publicUrl
+  obj[Symbol.toPrimitive] = () => result.publicUrl
+  return obj
+}
+
+export async function uploadFile(file: File, storagePath: string): Promise<any> {
   if (!(file instanceof File)) {
     throw new Error('Файл не передан')
   }
@@ -95,20 +94,36 @@ export async function uploadFile(file: File, storagePath: string): Promise<strin
     throw new Error(`Неподдерживаемый тип файла: ${file.type || extFromName(file.name) || 'unknown'}`)
   }
 
-  const finalPath = ensurePath(storagePath, file)
+  const ext = extFromName(file.name) || (mime.startsWith('video/') ? 'mp4' : 'jpg')
+  const fallbackPath = `products/common/${Date.now()}-${crypto.randomUUID()}.${ext}`
+  const finalPath = normalizePath(storagePath) ? safePath(normalizePath(storagePath)) : fallbackPath
 
-  const { error } = await supabase.storage.from(BUCKET_NAME).upload(finalPath, file, {
-    upsert: true,
-    contentType: mime,
-    cacheControl: '3600',
-  })
+  const { error } = await supabase.storage
+    .from(BUCKET_NAME)
+    .upload(finalPath, file, {
+      upsert: true,
+      contentType: mime,
+      cacheControl: '3600',
+    })
 
   if (error) {
     throw new Error(`Ошибка Storage: ${error.message}`)
   }
 
   const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(finalPath)
-  return data.publicUrl
+  const publicUrl = data.publicUrl
+  const mediaType: 'image' | 'video' = mime.startsWith('video/') ? 'video' : 'image'
+
+  const result: UploadedMediaResult = {
+    url: publicUrl,
+    publicUrl,
+    storagePath: finalPath,
+    path: finalPath,
+    mediaType,
+    type: mediaType,
+  }
+
+  return withStringCompat(result)
 }
 
 export async function deleteFile(storagePathOrUrl: string): Promise<void> {
