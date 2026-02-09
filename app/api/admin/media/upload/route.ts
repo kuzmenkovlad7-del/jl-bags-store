@@ -1,74 +1,94 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@supabase/supabase-js'
 
-export async function POST(request: NextRequest) {
+export const runtime = 'nodejs'
+
+const BUCKET = 'product-media'
+const MAX_SIZE = 100 * 1024 * 1024
+const ALLOWED = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'video/mp4', 'video/quicktime', 'video/webm'])
+
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const service = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!url) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL')
+  if (service) return createClient(url, service)
+  if (anon) return createClient(url, anon)
+
+  throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_SUPABASE_ANON_KEY')
+}
+
+function sanitizeSegment(input: string) {
+  return input.replace(/[^a-zA-Z0-9_-]/g, '_')
+}
+
+export async function POST(req: NextRequest) {
   try {
-    const formData = await request.formData()
-    const file = formData.get('file') as File
-    const productId = formData.get('productId') as string
-    const productCode = formData.get('productCode') as string
+    const supabase = getSupabaseAdmin()
+    const formData = await req.formData()
+    const file = formData.get('file')
 
-    if (!file || !productId || !productCode) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    if (!(file instanceof File)) {
+      return NextResponse.json({ ok: false, error: 'file is required' }, { status: 400 })
     }
 
-    const isVideo = file.type.startsWith('video/')
-    const fileExt = file.name.split('.').pop()
-    const timestamp = Date.now()
-    const fileName = `${timestamp}.${fileExt}`
-    const folder = isVideo ? 'video' : 'images'
-    const storagePath = `products/${productCode}/${folder}/${fileName}`
+    if (!ALLOWED.has(file.type)) {
+      return NextResponse.json(
+        { ok: false, error: `unsupported file type: ${file.type}` },
+        { status: 415 }
+      )
+    }
 
-    // Upload to Supabase Storage
+    if (file.size > MAX_SIZE) {
+      return NextResponse.json(
+        { ok: false, error: `file too large: ${file.size} bytes` },
+        { status: 413 }
+      )
+    }
+
+    const productIdRaw = String(formData.get('productId') || 'common')
+    const productId = sanitizeSegment(productIdRaw)
+    const ext = (file.name.split('.').pop() || '').toLowerCase() || (file.type === 'video/mp4' ? 'mp4' : 'jpg')
+    const filename = `${Date.now()}-${crypto.randomUUID()}.${ext}`
+    const storagePath = `products/${productId}/${filename}`
+
+    const bytes = await file.arrayBuffer()
+    const buffer = Buffer.from(bytes)
+
     const { error: uploadError } = await supabase.storage
-      .from('product-media')
-      .upload(storagePath, file, {
-        cacheControl: '3600',
+      .from(BUCKET)
+      .upload(storagePath, buffer, {
+        contentType: file.type,
         upsert: false,
+        cacheControl: '3600',
       })
 
     if (uploadError) {
-      console.error('Upload error:', uploadError)
-      return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
+      return NextResponse.json(
+        { ok: false, error: uploadError.message, code: (uploadError as any)?.statusCode ?? null },
+        { status: 500 }
+      )
     }
 
-    // Get public URL
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from('product-media').getPublicUrl(storagePath)
+    const { data } = supabase.storage.from(BUCKET).getPublicUrl(storagePath)
+    const publicUrl = data.publicUrl
+    const mediaType = file.type.startsWith('video/') ? 'video' : 'image'
 
-    // Get max position
-    const { data: existingMedia } = await supabase
-      .from('product_media')
-      .select('position')
-      .eq('product_id', productId)
-      .order('position', { ascending: false })
-      .limit(1)
-
-    const maxPosition = existingMedia?.[0]?.position ?? -1
-
-    // Save to DB
-    const { data: mediaRecord, error: dbError } = await supabase
-      .from('product_media')
-      .insert({
-        product_id: productId,
-        media_type: isVideo ? 'video' : 'photo',
-        url: publicUrl,
-        storage_path: storagePath,
-        position: maxPosition + 1,
-        is_primary: false,
-      })
-      .select()
-      .single()
-
-    if (dbError) {
-      console.error('DB error:', dbError)
-      return NextResponse.json({ error: 'Database error' }, { status: 500 })
-    }
-
-    return NextResponse.json({ media: mediaRecord })
-  } catch (error) {
-    console.error('Upload API error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({
+      ok: true,
+      bucket: BUCKET,
+      storagePath,
+      path: storagePath,
+      publicUrl,
+      url: publicUrl,
+      mediaType,
+      type: mediaType,
+    })
+  } catch (e: any) {
+    return NextResponse.json(
+      { ok: false, error: e?.message || 'upload failed' },
+      { status: 500 }
+    )
   }
 }

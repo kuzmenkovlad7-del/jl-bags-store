@@ -116,7 +116,7 @@ export const adminRu = {
     uploadPhotos: 'Загрузить фото',
     uploadVideo: 'Загрузить видео',
     dragDrop: 'Перетащите файлы сюда или нажмите',
-    maxSize: 'Максимум 10MB, JPG/PNG/MP4',
+    maxSize: 'Максимум 100MB, JPG/PNG/WEBP/HEIC/HEIF/MP4/MOV/WEBM',
     uploading: 'Загрузка...',
     photos: 'Фотографии',
     videos: 'Видео',
