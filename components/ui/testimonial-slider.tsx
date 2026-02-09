@@ -1,178 +1,166 @@
-'use client'
+'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react'
-import Image from 'next/image'
-import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Quote } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-type Locale = 'uk' | 'ru'
-
-interface Testimonial {
-  id: number
-  image: string
-  name_uk: string
-  name_ru: string
-  text_uk: string
-  text_ru: string
-}
+type Locale = 'uk' | 'ru';
 
 interface TestimonialSliderProps {
-  locale: Locale
-  items?: Testimonial[]
+  locale: Locale;
+  items?: string[];
 }
 
-const defaultItems: Testimonial[] = [
-  {
-    id: 1,
-    image: '/reviews/review-01.jpg',
-    name_uk: 'Клієнтка Julia Lebedeva',
-    name_ru: 'Клиентка Julia Lebedeva',
-    text_uk: 'Швидка доставка, гарна якість та дуже приємний сервіс.',
-    text_ru: 'Быстрая доставка, отличное качество и очень приятный сервис.',
-  },
-  {
-    id: 2,
-    image: '/reviews/review-02.jpg',
-    name_uk: 'Клієнтка Julia Lebedeva',
-    name_ru: 'Клиентка Julia Lebedeva',
-    text_uk: 'Сумка виглядає стильно, вживу ще краща ніж на фото.',
-    text_ru: 'Сумка выглядит стильно, вживую еще лучше, чем на фото.',
-  },
-  {
-    id: 3,
-    image: '/reviews/review-03.jpg',
-    name_uk: 'Клієнтка Julia Lebedeva',
-    name_ru: 'Клиентка Julia Lebedeva',
-    text_uk: 'Дуже зручна модель на кожен день, рекомендую.',
-    text_ru: 'Очень удобная модель на каждый день, рекомендую.',
-  },
-  {
-    id: 4,
-    image: '/reviews/review-04.jpg',
-    name_uk: 'Клієнтка Julia Lebedeva',
-    name_ru: 'Клиентка Julia Lebedeva',
-    text_uk: 'Матеріал і фурнітура на високому рівні.',
-    text_ru: 'Материал и фурнитура на высоком уровне.',
-  },
-  {
-    id: 5,
-    image: '/reviews/review-05.jpg',
-    name_uk: 'Клієнтка Julia Lebedeva',
-    name_ru: 'Клиентка Julia Lebedeva',
-    text_uk: 'Дякую за консультацію, підібрали ідеальний варіант.',
-    text_ru: 'Спасибо за консультацию, помогли подобрать идеальный вариант.',
-  },
-  {
-    id: 6,
-    image: '/reviews/review-06.jpg',
-    name_uk: 'Клієнтка Julia Lebedeva',
-    name_ru: 'Клиентка Julia Lebedeva',
-    text_uk: 'Замовляю не вперше, завжди все якісно.',
-    text_ru: 'Заказываю не впервые, всегда все качественно.',
-  },
-  {
-    id: 7,
-    image: '/reviews/review-07.jpg',
-    name_uk: 'Клієнтка Julia Lebedeva',
-    name_ru: 'Клиентка Julia Lebedeva',
-    text_uk: 'Колір і форма повністю як очікувала.',
-    text_ru: 'Цвет и форма полностью как ожидала.',
-  },
-  {
-    id: 8,
-    image: '/reviews/review-08.jpg',
-    name_uk: 'Клієнтка Julia Lebedeva',
-    name_ru: 'Клиентка Julia Lebedeva',
-    text_uk: 'Покупкою задоволена на всі 100%.',
-    text_ru: 'Покупкой довольна на все 100%.',
-  },
-  {
-    id: 9,
-    image: '/reviews/review-09.jpg',
-    name_uk: 'Клієнтка Julia Lebedeva',
-    name_ru: 'Клиентка Julia Lebedeva',
-    text_uk: 'Дуже гарне пакування і швидке відправлення.',
-    text_ru: 'Очень аккуратная упаковка и быстрая отправка.',
-  },
-  {
-    id: 10,
-    image: '/reviews/review-10.jpg',
-    name_uk: 'Клієнтка Julia Lebedeva',
-    name_ru: 'Клиентка Julia Lebedeva',
-    text_uk: 'Точно повернусь ще за новою моделлю.',
-    text_ru: 'Точно вернусь еще за новой моделью.',
-  },
-]
+const FALLBACK_IMAGES = Array.from(
+  { length: 10 },
+  (_, i) => `/reviews/review-${String(i + 1).padStart(2, '0')}.jpg`
+);
 
-const getVisibleCount = (width: number) => {
-  if (width >= 1280) return 3
-  if (width >= 768) return 2
-  return 1
-}
+const AUTOPLAY_MS = 3200;
+const TRANSITION_MS = 460;
+const SWIPE_THRESHOLD = 40;
+
+const getVisibleCount = (width: number): number => {
+  if (width >= 1280) return 3;
+  if (width >= 768) return 2;
+  return 1;
+};
+
+const mod = (value: number, base: number): number => {
+  return ((value % base) + base) % base;
+};
 
 export function TestimonialSlider({ locale, items }: TestimonialSliderProps) {
-  const data = useMemo(() => (items?.length ? items : defaultItems), [items])
+  const images = useMemo(() => {
+    const cleaned = (items || []).filter(Boolean);
+    return cleaned.length > 0 ? cleaned : FALLBACK_IMAGES;
+  }, [items]);
 
-  const [width, setWidth] = useState<number>(typeof window !== 'undefined' ? window.innerWidth : 1280)
-  const [index, setIndex] = useState(0)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const baseLen = images.length;
+  const slides = useMemo(() => [...images, ...images, ...images], [images]);
 
-  useEffect(() => {
-    const onResize = () => setWidth(window.innerWidth)
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
+  const [visibleCount, setVisibleCount] = useState(1);
+  const [index, setIndex] = useState(baseLen); // стартуем с центрального блока
+  const [transitionEnabled, setTransitionEnabled] = useState(true);
 
-  const visible = getVisibleCount(width)
-  const maxIndex = Math.max(0, data.length - visible)
-  const canPrev = index > 0
-  const canNext = index < maxIndex
+  const startXRef = useRef<number | null>(null);
+  const startYRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (intervalRef.current) clearInterval(intervalRef.current)
-    intervalRef.current = setInterval(() => {
-      setIndex((prev) => (prev >= maxIndex ? 0 : prev + 1))
-    }, 4500)
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
+    if (typeof window === 'undefined') return;
+
+    const onResize = () => setVisibleCount(getVisibleCount(window.innerWidth));
+    onResize();
+
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  useEffect(() => {
+    // если поменялся массив отзывов — корректно перецентрируем
+    setIndex(baseLen);
+  }, [baseLen]);
+
+  useEffect(() => {
+    if (baseLen <= 1) return;
+
+    const id = window.setInterval(() => {
+      setIndex((prev) => prev + 1);
+    }, AUTOPLAY_MS);
+
+    return () => window.clearInterval(id);
+  }, [baseLen]);
+
+  useEffect(() => {
+    if (baseLen <= 1) return;
+
+    let target: number | null = null;
+
+    // ушли вправо за центральный блок
+    if (index >= baseLen * 2) {
+      target = baseLen + (index - baseLen * 2);
     }
-  }, [maxIndex])
 
-  const goPrev = () => setIndex((prev) => Math.max(0, prev - 1))
-  const goNext = () => setIndex((prev) => Math.min(maxIndex, prev + 1))
+    // ушли влево за центральный блок
+    if (index < baseLen) {
+      target = baseLen + (index - baseLen);
+    }
 
-  const title = locale === 'ru' ? 'Отзывы клиентов' : 'Відгуки клієнтів'
+    if (target === null) return;
+
+    const t = window.setTimeout(() => {
+      setTransitionEnabled(false);
+      setIndex(target as number);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setTransitionEnabled(true));
+      });
+    }, TRANSITION_MS);
+
+    return () => window.clearTimeout(t);
+  }, [index, baseLen]);
+
+  const goNext = () => setIndex((prev) => prev + 1);
+  const goPrev = () => setIndex((prev) => prev - 1);
+  const goTo = (dotIndex: number) => setIndex(baseLen + mod(dotIndex, baseLen));
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    startXRef.current = e.clientX;
+    startYRef.current = e.clientY;
+    (e.currentTarget as HTMLDivElement).setPointerCapture?.(e.pointerId);
+  };
+
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (startXRef.current === null || startYRef.current === null) return;
+
+    const dx = e.clientX - startXRef.current;
+    const dy = e.clientY - startYRef.current;
+
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) >= SWIPE_THRESHOLD) {
+      if (dx < 0) goNext();
+      else goPrev();
+    }
+
+    startXRef.current = null;
+    startYRef.current = null;
+  };
+
+  const onPointerCancel = () => {
+    startXRef.current = null;
+    startYRef.current = null;
+  };
+
+  const itemWidth = 100 / visibleCount;
+  const translateX = -(index * itemWidth);
+  const activeDot = baseLen > 0 ? mod(index, baseLen) : 0;
+
+  const title = locale === 'ru' ? 'Отзывы клиентов' : 'Відгуки клієнтів';
   const subtitle =
     locale === 'ru'
-      ? 'Реальные отзывы с фото от наших покупателей'
-      : 'Реальні відгуки з фото від наших покупців'
+      ? 'Реальные отзывы наших клиентов'
+      : 'Реальні відгуки наших клієнтів';
 
   return (
-    <section className="py-20 md:py-28 bg-white">
+    <section className="py-16 md:py-24 bg-white">
       <div className="container">
-        <div className="mb-10 md:mb-14 flex items-end justify-between gap-4">
+        <div className="mb-8 md:mb-10 flex items-end justify-between gap-4">
           <div>
             <h2 className="text-4xl md:text-5xl font-bold">{title}</h2>
-            <p className="mt-3 text-gray-500 text-base md:text-lg">{subtitle}</p>
+            <p className="mt-3 text-sm md:text-base text-gray-500">{subtitle}</p>
           </div>
 
           <div className="hidden md:flex items-center gap-2">
             <button
+              type="button"
               onClick={goPrev}
-              disabled={!canPrev}
-              className={`h-11 w-11 rounded-xl border transition ${
-                canPrev ? 'border-gray-300 hover:bg-gray-50' : 'border-gray-200 text-gray-300 cursor-not-allowed'
-              }`}
+              className="h-10 w-10 rounded-lg border border-gray-300 hover:bg-gray-50 transition"
               aria-label={locale === 'ru' ? 'Предыдущий отзыв' : 'Попередній відгук'}
             >
               <ChevronLeft className="mx-auto h-5 w-5" />
             </button>
             <button
+              type="button"
               onClick={goNext}
-              disabled={!canNext}
-              className={`h-11 w-11 rounded-xl border transition ${
-                canNext ? 'border-gray-300 hover:bg-gray-50' : 'border-gray-200 text-gray-300 cursor-not-allowed'
-              }`}
+              className="h-10 w-10 rounded-lg border border-gray-300 hover:bg-gray-50 transition"
               aria-label={locale === 'ru' ? 'Следующий отзыв' : 'Наступний відгук'}
             >
               <ChevronRight className="mx-auto h-5 w-5" />
@@ -180,73 +168,86 @@ export function TestimonialSlider({ locale, items }: TestimonialSliderProps) {
           </div>
         </div>
 
-        <div className="overflow-hidden">
-          <motion.div
-            className="flex"
-            animate={{ x: `-${index * (100 / visible)}%` }}
-            transition={{ type: 'spring', stiffness: 90, damping: 20 }}
+        <div
+          className="overflow-hidden select-none touch-pan-y cursor-grab active:cursor-grabbing"
+          onPointerDown={onPointerDown}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+          onPointerLeave={onPointerCancel}
+        >
+          <div
+            className="flex will-change-transform"
+            style={{
+              transform: `translate3d(${translateX}%, 0, 0)`,
+              transition: transitionEnabled
+                ? `transform ${TRANSITION_MS}ms cubic-bezier(0.22,1,0.36,1)`
+                : 'none',
+            }}
           >
-            {data.map((item) => {
-              const name = locale === 'ru' ? item.name_ru : item.name_uk
-              const text = locale === 'ru' ? item.text_ru : item.text_uk
-
-              return (
-                <div
-                  key={item.id}
-                  className={`flex-shrink-0 p-2 w-full ${
-                    visible === 3 ? 'md:w-1/3' : visible === 2 ? 'md:w-1/2' : 'w-full'
-                  }`}
-                >
-                  <article className="h-full rounded-2xl border border-gray-200 bg-white overflow-hidden">
-                    <div className="relative aspect-[9/16] bg-gray-100">
-                      <Image
-                        src={item.image}
-                        alt={name}
-                        fill
-                        className="object-cover object-top"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
-                      />
-                    </div>
-
-                    <div className="p-5">
-                      <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-gray-100">
-                        <Quote className="h-4 w-4 text-gray-700" />
-                      </div>
-                      <p className="text-sm md:text-base text-gray-700 leading-relaxed">{text}</p>
-                      <p className="mt-4 font-semibold text-black">{name}</p>
-                    </div>
-                  </article>
+            {slides.map((src, i) => (
+              <div
+                key={`${src}-${i}`}
+                className="px-2"
+                style={{ flex: `0 0 ${itemWidth}%` }}
+              >
+                <div className="relative overflow-hidden rounded-2xl bg-gray-200 aspect-[10/14] sm:aspect-[10/13]">
+                  <Image
+                    src={src}
+                    alt={`${locale === 'ru' ? 'Отзыв' : 'Відгук'} ${mod(i, baseLen) + 1}`}
+                    fill
+                    sizes={
+                      visibleCount === 1
+                        ? '100vw'
+                        : visibleCount === 2
+                        ? '50vw'
+                        : '33vw'
+                    }
+                    className="object-cover"
+                    priority={i < 3}
+                  />
+                  <div className="absolute inset-0 bg-black/12" />
+                  <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/35 to-transparent" />
                 </div>
-              )
-            })}
-          </motion.div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="mt-6 flex md:hidden items-center justify-center gap-2">
+        <div className="mt-5 flex items-center justify-between md:hidden">
           <button
+            type="button"
             onClick={goPrev}
-            disabled={!canPrev}
-            className={`h-10 w-10 rounded-lg border ${
-              canPrev ? 'border-gray-300' : 'border-gray-200 text-gray-300'
-            }`}
+            className="h-10 w-10 rounded-lg border border-gray-300 hover:bg-gray-50 transition"
             aria-label={locale === 'ru' ? 'Предыдущий отзыв' : 'Попередній відгук'}
           >
             <ChevronLeft className="mx-auto h-5 w-5" />
           </button>
           <button
+            type="button"
             onClick={goNext}
-            disabled={!canNext}
-            className={`h-10 w-10 rounded-lg border ${
-              canNext ? 'border-gray-300' : 'border-gray-200 text-gray-300'
-            }`}
+            className="h-10 w-10 rounded-lg border border-gray-300 hover:bg-gray-50 transition"
             aria-label={locale === 'ru' ? 'Следующий отзыв' : 'Наступний відгук'}
           >
             <ChevronRight className="mx-auto h-5 w-5" />
           </button>
         </div>
+
+        <div className="mt-6 flex justify-center gap-2">
+          {images.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => goTo(i)}
+              className={`h-2.5 rounded-full transition-all ${
+                i === activeDot ? 'w-6 bg-black' : 'w-2.5 bg-gray-300'
+              }`}
+              aria-label={`${locale === 'ru' ? 'Перейти к отзыву' : 'Перейти до відгуку'} ${i + 1}`}
+            />
+          ))}
+        </div>
       </div>
     </section>
-  )
+  );
 }
 
-export default TestimonialSlider
+export default TestimonialSlider;
