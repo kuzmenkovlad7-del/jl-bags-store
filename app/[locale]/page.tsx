@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { HomeFaqSection } from '@/components/ui/home-faq-section';
 import { TestimonialSlider } from '@/components/ui/testimonial-slider';
 import { AboutUsSection } from '@/components/ui/about-us-section';
@@ -12,7 +11,6 @@ import Link from 'next/link';
 import { ArrowRight, Shield, Truck, Award, HeadphonesIcon, Backpack, Wallet, ShoppingBag, Package, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Locale, t } from '@/lib/i18n';
-import { supabase } from '@/lib/supabase/client';
 
 // Visual categories
 const visualCategories = [
@@ -29,11 +27,6 @@ const visualCategories = [
   { slug: 'gamanets_zhinochyi', name_uk: 'Гаманець жіночий', name_ru: 'Кошелек женский', icon: Wallet },
   { slug: 'gamanets_cholovichyi', name_uk: 'Гаманець чоловічий', name_ru: 'Кошелек мужской', icon: Wallet },
 ];
-
-/** Normalize slug for comparison: decode, lowercase, trim, hyphens → underscores */
-function normalizeSlug(s: string): string {
-  return decodeURIComponent(s).toLowerCase().trim().replace(/-/g, '_');
-}
 
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
@@ -55,30 +48,6 @@ export default function HomePage({
   params: { locale: string };
 }) {
   const locale = params.locale as Locale;
-
-  // null = not yet loaded → show all; Set = loaded from DB
-  const [activeSlugs, setActiveSlugs] = useState<Set<string> | null>(null);
-
-  useEffect(() => {
-    supabase
-      ?.from('categories')
-      .select('slug')
-      .eq('is_active', true)
-      .then(({ data }: { data: Array<{ slug: string }> | null }) => {
-        if (data && data.length > 0) {
-          // Normalize DB slugs so hyphens and underscores both match
-          setActiveSlugs(new Set(data.map((c) => normalizeSlug(c.slug))));
-        }
-        // On error or empty array → keep null → fallback to show all
-      });
-  }, []);
-
-  // Filter visualCategories by active DB slugs (normalized); fallback to all if 0 results
-  const filteredCategories =
-    activeSlugs === null
-      ? visualCategories
-      : visualCategories.filter((c) => activeSlugs.has(normalizeSlug(c.slug)));
-  const categories = filteredCategories.length > 0 ? filteredCategories : visualCategories;
 
   const heroSlides = [
     {
@@ -110,7 +79,7 @@ export default function HomePage({
             </motion.h2>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-6">
-              {categories.map((category) => {
+              {visualCategories.map((category) => {
                 const Icon = category.icon;
                 return (
                   <motion.div key={category.slug} variants={fadeInUp}>
