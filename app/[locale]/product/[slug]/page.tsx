@@ -1,6 +1,7 @@
 export const dynamicParams = true
 export const revalidate = 0
 export const dynamic = 'force-dynamic'
+
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -12,28 +13,103 @@ import { formatPrice } from '@/lib/utils'
 import { ProductClient } from './product-client'
 import { ProductMediaGallery } from './product-media-gallery'
 
-async function getProduct(slug: string): Promise<Product | null> {
-  const { data } = await supabase
-    .from('products')
-    .select('*, media:product_media(*)')
-    .eq('slug', slug)
-    .eq('is_active', true)
-    .order('is_primary', { foreignTable: 'product_media', ascending: false })
-    .order('position', { foreignTable: 'product_media', ascending: true })
-    .single()
+const PRODUCT_SELECT = '*, media:product_media(*)'
 
-  return data
+function sortMedia(media: any[] | undefined) {
+  if (!Array.isArray(media)) return []
+  return [...media].sort((a, b) => {
+    const aPrimary = Number(Boolean(a?.is_primary ?? a?.is_main ?? false))
+    const bPrimary = Number(Boolean(b?.is_primary ?? b?.is_main ?? false))
+    if (aPrimary !== bPrimary) return bPrimary - aPrimary
+
+    const aPos = Number(a?.position ?? a?.sort_order ?? 0)
+    const bPos = Number(b?.position ?? b?.sort_order ?? 0)
+    return aPos - bPos
+  })
+}
+
+function normalizeSlug(input: string) {
+  return decodeURIComponent(String(input || '').trim()).toLowerCase()
+}
+
+function extractCodeFromSlug(slug: string): string | null {
+  const m = slug.match(/(\d+)$/)
+  return m ? m[1] : null
+}
+
+async function fetchBySlug(slug: string, activeOnly: boolean): Promise<Product | null> {
+  let q = supabase.from('products').select(PRODUCT_SELECT).eq('slug', slug).limit(1)
+
+  if (activeOnly) {
+    q = q.eq('is_active', true)
+  }
+
+  const { data, error } = await q.maybeSingle()
+
+  if (error) {
+    console.error('[product page] fetchBySlug error', { slug, activeOnly, error: error.message })
+    return null
+  }
+
+  if (!data) return null
+  return { ...(data as any), media: sortMedia((data as any).media) } as Product
+}
+
+async function fetchByCode(code: string, activeOnly: boolean): Promise<Product | null> {
+  let q = supabase.from('products').select(PRODUCT_SELECT).eq('code', code).limit(1)
+
+  if (activeOnly) {
+    q = q.eq('is_active', true)
+  }
+
+  const { data, error } = await q.maybeSingle()
+
+  if (error) {
+    console.error('[product page] fetchByCode error', { code, activeOnly, error: error.message })
+    return null
+  }
+
+  if (!data) return null
+  return { ...(data as any), media: sortMedia((data as any).media) } as Product
+}
+
+async function getProduct(slugRaw: string): Promise<Product | null> {
+  const slug = normalizeSlug(slugRaw)
+
+  // 1) slug + active
+  let product = await fetchBySlug(slug, true)
+  if (product) return product
+
+  // 2) slug без active фильтра
+  product = await fetchBySlug(slug, false)
+  if (product) return product
+
+  // 3) fallback по коду из slug
+  const code = extractCodeFromSlug(slug)
+  if (code) {
+    product = await fetchByCode(code, true)
+    if (product) return product
+
+    product = await fetchByCode(code, false)
+    if (product) return product
+  }
+
+  return null
 }
 
 async function getSimilarProducts(productId: string): Promise<Product[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('products')
-    .select('*, media:product_media(*)')
-    .eq('is_active', true)
+    .select(PRODUCT_SELECT)
     .neq('id', productId)
     .limit(4)
 
-  return data || []
+  if (error) {
+    console.error('[product page] getSimilarProducts error', error.message)
+    return []
+  }
+
+  return (data || []).map((p: any) => ({ ...p, media: sortMedia(p.media) })) as Product[]
 }
 
 export async function generateMetadata({
@@ -70,26 +146,20 @@ export default async function ProductPage({
     notFound()
   }
 
-  const similarProducts = await getSimilarProducts(product.id)
+  const similarProducts = await getSimilarProducts(String(product.id))
   const name = locale === 'ru' && product.name_ru ? product.name_ru : product.name_uk
   const description =
     locale === 'ru' && product.description_ru
       ? product.description_ru
       : product.description_uk
-  const material =
-    locale === 'ru' && product.material_ru ? product.material_ru : product.material_uk
 
   return (
     <div className="container py-8">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
-        {/* Gallery */}
         <ProductMediaGallery product={product} locale={locale} name={name} />
-
-        {/* Product Info */}
         <ProductClient product={product} locale={locale} />
       </div>
 
-      {/* JSON-LD Schema */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
@@ -112,7 +182,6 @@ export default async function ProductPage({
         }}
       />
 
-      {/* Similar Products */}
       {similarProducts.length > 0 && (
         <section>
           <h2 className="text-2xl font-bold mb-8">{t(locale, 'product.similar')}</h2>
