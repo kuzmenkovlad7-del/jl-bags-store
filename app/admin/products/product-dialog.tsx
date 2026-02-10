@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabase/client'
 import { Product, StockStatus, Category } from '@/lib/types'
 import { useToast } from '@/components/ui/use-toast'
 import { ta } from '@/lib/admin-i18n'
-import { MediaUpload } from '@/components/admin/media-upload'
+import MediaUpload from '@/components/admin/media-upload'
 import { ColorsEditor } from '@/components/admin/colors-editor'
 
 interface ProductDialogProps {
@@ -228,12 +228,12 @@ export function ProductDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-12px)] sm:w-full max-w-2xl max-h-[90vh] overflow-y-auto p-3 sm:p-6">
         <DialogHeader>
           <DialogTitle>{product ? ta('products.editProduct') : ta('products.addProduct')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="code">{ta('productForm.code')}</Label>
               <Input
@@ -258,7 +258,7 @@ export function ProductDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="name_uk">{ta('productForm.nameUk')}</Label>
               <Input
@@ -282,7 +282,7 @@ export function ProductDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="description_uk">{ta('productForm.descriptionUk')}</Label>
               <Textarea
@@ -305,7 +305,7 @@ export function ProductDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="material_uk">{ta('productForm.materialUk')}</Label>
               <Input
