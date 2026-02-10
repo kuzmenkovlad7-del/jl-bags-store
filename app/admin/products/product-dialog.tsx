@@ -396,9 +396,10 @@ export function ProductDialog({
             <div className="border-t pt-4">
               <Label className="mb-2 block">{ta('productForm.media')}</Label>
               <MediaUpload
-                productId={product.id}
-                productCode={product.code}
-                media={productMedia}
+                productId={product?.id ?? null}
+                productCode={formData.code}
+                media={productMedia as any}
+                onMediaChange={(items) => setProductMedia(items as any)}
                 onMediaUpdate={handleMediaUpdate}
               />
             </div>

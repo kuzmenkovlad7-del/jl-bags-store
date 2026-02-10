@@ -1,13 +1,10 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { FileRejection, useDropzone } from 'react-dropzone'
+import { useDropzone } from 'react-dropzone'
+import { Star, Upload, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
-import {
-  ALLOWED_MIME_TYPES,
-  MAX_FILE_SIZE,
-  uploadFileDetailed,
-} from '@/lib/supabase/storage'
+import { MAX_FILE_SIZE, uploadFileDetailed, validateFile } from '@/lib/supabase/storage'
 
 type MediaKind = 'image' | 'video'
 
@@ -16,77 +13,71 @@ export interface AdminMediaItem {
   product_id?: string
   url: string
   publicUrl?: string
-  path?: string
   storagePath?: string
+  path?: string
   type?: MediaKind | string
-  mimeType?: string
-  size?: number
+  media_type?: MediaKind | string
+  mimeType?: string | null
+  mime_type?: string | null
+  size?: number | null
   position?: number
   is_primary?: boolean
-  [key: string]: any
 }
 
 interface MediaUploadProps {
-  productId?: string | number | null
-  productCode?: string
-  media?: AdminMediaItem[]
   value?: AdminMediaItem[]
+  media?: AdminMediaItem[]
   onChange?: (items: AdminMediaItem[]) => void
   onMediaChange?: (items: AdminMediaItem[]) => void
-  onMediaUpdate?: () => Promise<void> | void
+  onMediaUpdate?: () => void | Promise<void>
+  productId?: string | number | null
+  productCode?: string
+  folder?: string
+  maxFiles?: number
   disabled?: boolean
   className?: string
 }
 
 const BUCKET = 'product-media'
-const MAX_FILES = 10
 const PUBLIC_SEGMENT = `/storage/v1/object/public/${BUCKET}/`
 
-const ACCEPT: Record<string, string[]> = {
-  'image/jpeg': ['.jpg', '.jpeg'],
-  'image/jpg': ['.jpg', '.jpeg'],
-  'image/png': ['.png'],
-  'image/webp': ['.webp'],
-  'image/heic': ['.heic'],
-  'image/heif': ['.heif'],
-  'video/mp4': ['.mp4'],
-  'video/quicktime': ['.mov'],
-  'video/webm': ['.webm'],
-}
-
-function toMediaKind(input?: string): MediaKind {
-  const v = String(input || '').toLowerCase()
-  if (v === 'video' || v.startsWith('video/')) return 'video'
+function toMediaKind(mimeType?: string | null, rawType?: string | null): MediaKind {
+  const t = String(rawType || '').toLowerCase()
+  if (t === 'video') return 'video'
+  const m = String(mimeType || '').toLowerCase()
+  if (m.startsWith('video/')) return 'video'
   return 'image'
 }
 
-function parseStoragePath(raw?: string): string {
+function normalizeStoragePath(raw?: string): string {
   if (!raw) return ''
-  const value = String(raw).trim()
+  let value = String(raw).trim()
   if (!value) return ''
 
-  if (value.includes(PUBLIC_SEGMENT)) {
-    const after = value.split(PUBLIC_SEGMENT)[1] || ''
-    return decodeURIComponent((after.split('?')[0] || '').replace(/^\/+/, ''))
-  }
-
-  if (value.startsWith(`${BUCKET}/`)) {
-    return value.slice(BUCKET.length + 1)
-  }
-
   if (/^https?:\/\//i.test(value)) {
-    return ''
+    try {
+      const u = new URL(value)
+      const idx = u.pathname.indexOf(PUBLIC_SEGMENT)
+      if (idx >= 0) {
+        value = u.pathname.slice(idx + PUBLIC_SEGMENT.length)
+      } else {
+        value = u.pathname
+      }
+    } catch {
+      return ''
+    }
   }
 
-  return value.replace(/^\/+/, '')
+  value = value.replace(/^\/+/, '')
+  value = value.replace(new RegExp(`^${BUCKET}/`), '')
+  return decodeURIComponent(value)
 }
 
-function normalizeItem(item: Record<string, any>): AdminMediaItem {
+function normalizeItem(item: AdminMediaItem, index: number): AdminMediaItem {
   const url = item.url || item.publicUrl || ''
-  const storagePath =
-    item.storagePath || item.path || parseStoragePath(url)
-
-  const type = toMediaKind(item.type || item.mimeType)
+  const mime = item.mimeType ?? item.mime_type ?? null
+  const kind = toMediaKind(mime, (item.type as string) || (item.media_type as string) || null)
+  const storagePath = item.storagePath || item.path || normalizeStoragePath(url)
 
   return {
     ...item,
@@ -94,68 +85,64 @@ function normalizeItem(item: Record<string, any>): AdminMediaItem {
     publicUrl: item.publicUrl || url,
     storagePath,
     path: item.path || storagePath,
-    type,
+    mimeType: mime,
+    mime_type: mime,
+    type: kind,
+    media_type: kind,
+    position: typeof item.position === 'number' ? item.position : index,
+    is_primary: Boolean(item.is_primary),
   }
 }
 
-function byPosition(a: AdminMediaItem, b: AdminMediaItem): number {
-  return (a.position ?? 0) - (b.position ?? 0)
+function normalizeList(list: AdminMediaItem[]): AdminMediaItem[] {
+  const normalized = list.map((item, i) => normalizeItem(item, i))
+  return normalized.map((item, i) => ({
+    ...item,
+    position: i,
+    is_primary: i === 0,
+  }))
 }
 
-function unknownColumnLike(message: string): boolean {
-  const m = message.toLowerCase()
-  return (
-    m.includes('could not find') ||
-    m.includes('column') ||
-    m.includes('schema cache') ||
-    m.includes('pgrst')
-  )
+function asPersistableProductId(productId: string | number | null | undefined): string | null {
+  const v = String(productId ?? '').trim()
+  if (!v || v === 'new' || v === 'null' || v === 'undefined') return null
+  return v
 }
 
-async function insertProductMediaFlexible(params: {
-  productId: string
-  url: string
-  path: string
-  type: string
+async function insertProductMediaRow(
+  productId: string,
+  item: AdminMediaItem,
   position: number
-  mimeType: string
-  size: number
-}): Promise<AdminMediaItem> {
-  const { productId, url, path, type, position, mimeType, size } = params
+): Promise<AdminMediaItem> {
+  const mediaType = toMediaKind(item.mimeType ?? item.mime_type ?? null, (item.type as string) || null)
 
-  const attempts: Array<Record<string, any>> = [
+  const payloads: Array<Record<string, any>> = [
     {
       product_id: productId,
-      url,
-      path,
-      type,
+      url: item.url,
+      media_type: mediaType,
       position,
-      mime_type: mimeType,
-      size,
+      mime_type: item.mimeType ?? item.mime_type ?? null,
+      size: item.size ?? null,
     },
     {
       product_id: productId,
-      url,
-      path,
-      type,
+      url: item.url,
+      media_type: mediaType,
       position,
     },
+    // fallback для возможной старой схемы
     {
       product_id: productId,
-      url,
-      type,
-      position,
-    },
-    {
-      product_id: productId,
-      url,
+      url: item.url,
+      type: mediaType,
       position,
     },
   ]
 
   let lastError: any = null
 
-  for (const payload of attempts) {
+  for (const payload of payloads) {
     const { data, error } = await supabase
       .from('product_media')
       .insert(payload)
@@ -163,159 +150,159 @@ async function insertProductMediaFlexible(params: {
       .single()
 
     if (!error) {
-      return normalizeItem(data || payload)
+      const row = (data as any) || {}
+      return normalizeItem(
+        {
+          ...item,
+          id: row.id ?? item.id,
+          product_id: row.product_id ?? productId,
+          url: row.url ?? item.url,
+          media_type: row.media_type ?? mediaType,
+          type: row.type ?? mediaType,
+          mime_type: row.mime_type ?? item.mimeType ?? null,
+          mimeType: row.mime_type ?? item.mimeType ?? null,
+          size: row.size ?? item.size ?? null,
+          position,
+        },
+        position
+      )
     }
 
     lastError = error
-    const msg = String(error.message || '')
-    if (!unknownColumnLike(msg)) {
-      break
-    }
+    const msg = String(error.message || '').toLowerCase()
+    const retryable =
+      msg.includes('column') ||
+      msg.includes('schema cache') ||
+      msg.includes('null value') ||
+      msg.includes('does not exist')
+
+    if (!retryable) break
   }
 
   throw lastError || new Error('Не удалось сохранить медиа в product_media')
 }
 
+async function replaceProductMediaRows(productId: string, items: AdminMediaItem[]): Promise<AdminMediaItem[]> {
+  const normalized = normalizeList(items)
+
+  const del = await supabase.from('product_media').delete().eq('product_id', productId)
+  if (del.error) {
+    throw del.error
+  }
+
+  if (!normalized.length) return []
+
+  const result: AdminMediaItem[] = []
+  for (let i = 0; i < normalized.length; i += 1) {
+    const row = await insertProductMediaRow(productId, normalized[i], i)
+    result.push(row)
+  }
+
+  return normalizeList(result)
+}
+
 export function MediaUpload({
-  productId = null,
-  productCode,
-  media,
   value,
+  media,
   onChange,
   onMediaChange,
   onMediaUpdate,
+  productId = null,
+  productCode,
+  folder,
+  maxFiles = 10,
   disabled = false,
   className = '',
 }: MediaUploadProps) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
 
-  const items = useMemo(
-    () => (value ?? media ?? []).map(normalizeItem).sort(byPosition),
-    [value, media]
-  )
+  const items = useMemo(() => normalizeList((value ?? media ?? []) as AdminMediaItem[]), [value, media])
 
   const emit = (next: AdminMediaItem[]) => {
-    onChange?.(next)
-    onMediaChange?.(next)
+    const normalized = normalizeList(next)
+    onChange?.(normalized)
+    onMediaChange?.(normalized)
   }
 
-  const productIdStr =
-    productId === null || productId === undefined ? '' : String(productId)
+  const persistId = asPersistableProductId(productId)
+  const uploadFolder = folder || `products/${persistId || 'new'}`
 
-  const refreshFromDb = async (fallback?: AdminMediaItem[]) => {
-    if (!productIdStr || productIdStr === 'new') {
-      if (fallback) emit(fallback)
+  const saveAndEmit = async (next: AdminMediaItem[]) => {
+    const normalized = normalizeList(next)
+
+    if (!persistId) {
+      emit(normalized)
       return
     }
 
-    const { data, error: readErr } = await supabase
-      .from('product_media')
-      .select('*')
-      .eq('product_id', productIdStr)
-      .order('position', { ascending: true })
-
-    if (readErr) {
-      if (fallback) emit(fallback)
-      setError(readErr.message || 'Ошибка чтения media')
-    } else {
-      emit((data || []).map(normalizeItem))
-    }
-
+    const persisted = await replaceProductMediaRows(persistId, normalized)
+    emit(persisted)
     await onMediaUpdate?.()
   }
 
   const onDrop = async (acceptedFiles: File[]) => {
     if (disabled || uploading) return
-
-    if (!productIdStr || productIdStr === 'new') {
-      setError('Сначала сохраните товар, потом загружайте фото/видео')
-      return
-    }
-
     if (!acceptedFiles.length) return
-
-    const remain = MAX_FILES - items.length
-    if (remain <= 0) {
-      setError(`Можно загрузить максимум ${MAX_FILES} файлов`)
-      return
-    }
-
-    const files = acceptedFiles.slice(0, remain)
 
     setUploading(true)
     setError('')
 
     try {
-      const basePosition = items.length
-      const created: AdminMediaItem[] = []
-
-      for (let i = 0; i < files.length; i += 1) {
-        const file = files[i]
-        const mime = String(file.type || '').toLowerCase()
-
-        if (mime && !ALLOWED_MIME_TYPES.includes(mime)) {
-          throw new Error(`Неподдерживаемый формат: ${mime || file.name}`)
-        }
-
-        if (file.size > MAX_FILE_SIZE) {
-          throw new Error(
-            `Файл слишком большой. Максимум ${Math.round(
-              MAX_FILE_SIZE / 1024 / 1024
-            )}MB`
-          )
-        }
-
-        const uploaded = await uploadFileDetailed(file, `products/${productIdStr}`)
-        const url = uploaded.publicUrl || uploaded.url
-        const path = uploaded.storagePath || uploaded.path || ''
-        const kind = toMediaKind(uploaded.kind || uploaded.mimeType)
-
-        const row = await insertProductMediaFlexible({
-          productId: productIdStr,
-          url,
-          path,
-          type: kind,
-          position: basePosition + i,
-          mimeType: uploaded.mimeType || mime || '',
-          size: uploaded.size || file.size,
-        })
-
-        created.push(row)
+      if (items.length >= maxFiles) {
+        throw new Error(`Можно загрузить максимум ${maxFiles} файлов`)
+      }
+      if (items.length + acceptedFiles.length > maxFiles) {
+        throw new Error(`Лимит ${maxFiles} файлов. Удалите лишние или загрузите меньше за раз`)
       }
 
-      await refreshFromDb([...items, ...created])
+      const uploaded: AdminMediaItem[] = []
+
+      for (const file of acceptedFiles) {
+        const check = validateFile(file)
+        if (!check.ok) {
+          throw new Error(check.error || `Неподдерживаемый файл: ${file.name}`)
+        }
+
+        const result = await uploadFileDetailed(file, uploadFolder)
+        const kind = toMediaKind(result.mimeType, result.kind)
+
+        uploaded.push(
+          normalizeItem(
+            {
+              id: crypto.randomUUID(),
+              url: result.publicUrl || result.url,
+              publicUrl: result.publicUrl || result.url,
+              storagePath: result.storagePath || result.path,
+              path: result.path || result.storagePath,
+              type: kind,
+              media_type: kind,
+              mimeType: result.mimeType,
+              mime_type: result.mimeType,
+              size: result.size,
+              position: items.length + uploaded.length,
+              is_primary: items.length + uploaded.length === 0,
+            },
+            items.length + uploaded.length
+          )
+        )
+      }
+
+      const next = normalizeList([...items, ...uploaded]).slice(0, maxFiles)
+      await saveAndEmit(next)
     } catch (e: any) {
-      const msg = String(e?.message || 'Ошибка загрузки')
-      if (
-        msg.toLowerCase().includes('mime type') &&
-        msg.toLowerCase().includes('not supported')
-      ) {
+      const raw = String(e?.message || 'Ошибка загрузки')
+      if (raw.toLowerCase().includes('mime type') && raw.toLowerCase().includes('not supported')) {
         setError(
-          `${msg}. Добавьте HEIC/HEIF в настройки bucket product-media (allowed MIME types).`
+          'Формат отклонён bucket-ом Supabase. Разрешите этот MIME в storage.buckets (ниже дам SQL).'
         )
       } else {
-        setError(msg)
+        setError(raw)
       }
-      console.error('Upload error:', e)
+      console.error('Media upload error:', e)
     } finally {
       setUploading(false)
     }
-  }
-
-  const onDropRejected = (rejections: FileRejection[]) => {
-    if (!rejections.length) return
-    const first = rejections[0]
-    const reason = first.errors[0]?.code || 'file-invalid'
-    if (reason === 'file-too-large') {
-      setError(`Файл слишком большой. Максимум ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB`)
-      return
-    }
-    if (reason === 'too-many-files') {
-      setError(`Можно загрузить максимум ${MAX_FILES} файлов`)
-      return
-    }
-    setError('Неподдерживаемый формат файла')
   }
 
   const removeAt = async (index: number) => {
@@ -323,184 +310,124 @@ export function MediaUpload({
     if (!target) return
 
     setError('')
+    const next = normalizeList(items.filter((_, i) => i !== index))
+    emit(next)
 
     try {
-      if (target.id) {
-        const { error: dbErr } = await supabase
-          .from('product_media')
-          .delete()
-          .eq('id', target.id)
-        if (dbErr) throw dbErr
-      } else if (productIdStr) {
-        const { error: dbErr } = await supabase
-          .from('product_media')
-          .delete()
-          .eq('product_id', productIdStr)
-          .eq('url', target.url)
-        if (dbErr) throw dbErr
-      }
-
-      const storagePath = parseStoragePath(
-        target.path || target.storagePath || target.url
-      )
-
+      const storagePath = normalizeStoragePath(target.storagePath || target.path || target.url)
       if (storagePath) {
-        const { error: storageErr } = await supabase
-          .storage
-          .from(BUCKET)
-          .remove([storagePath])
-
-        if (storageErr) {
-          console.warn('Storage remove warning:', storageErr.message)
+        const rm = await supabase.storage.from(BUCKET).remove([storagePath])
+        if (rm.error) {
+          console.warn('Storage remove warning:', rm.error.message)
         }
       }
-
-      const next = items
-        .filter((_, i) => i !== index)
-        .map((m, i) => ({ ...m, position: i }))
-
-      await refreshFromDb(next)
+      await saveAndEmit(next)
     } catch (e: any) {
-      setError(e?.message || 'Ошибка удаления файла')
-      console.error('Remove error:', e)
+      setError(String(e?.message || 'Ошибка удаления файла'))
+      console.error('Media remove error:', e)
     }
   }
 
   const setPrimary = async (index: number) => {
-    const sorted = [...items].sort(byPosition)
-    if (index < 0 || index >= sorted.length) return
-    if (sorted.length <= 1) return
-
-    const chosen = sorted[index]
-    const rest = sorted.filter((_, i) => i !== index)
-    const reordered = [chosen, ...rest]
+    if (index < 0 || index >= items.length) return
+    const next = normalizeList(
+      items.map((it, i) => ({
+        ...it,
+        is_primary: i === index,
+      }))
+    )
+    emit(next)
 
     try {
-      for (let i = 0; i < reordered.length; i += 1) {
-        const row = reordered[i]
-        if (!row.id) continue
-
-        const { error: updErr } = await supabase
-          .from('product_media')
-          .update({ position: i })
-          .eq('id', row.id)
-
-        if (updErr) throw updErr
-      }
-
-      await refreshFromDb(
-        reordered.map((m, i) => ({
-          ...m,
-          position: i,
-          is_primary: i === 0,
-        }))
-      )
+      await saveAndEmit(next)
     } catch (e: any) {
-      setError(e?.message || 'Ошибка установки главного фото')
-      console.error('Set primary error:', e)
+      setError(String(e?.message || 'Ошибка сохранения порядка медиа'))
+      console.error('Media reorder error:', e)
     }
   }
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    onDropRejected,
-    accept: ACCEPT,
-    disabled: disabled || uploading || items.length >= MAX_FILES,
-    maxSize: MAX_FILE_SIZE,
     multiple: true,
-    maxFiles: Math.max(0, MAX_FILES - items.length),
+    maxSize: MAX_FILE_SIZE,
+    disabled: disabled || uploading,
   })
-
-  const subtitleCode = productCode ? ` • ${productCode}` : ''
 
   return (
     <div className={className}>
-      <div className="mb-2 flex items-center justify-between">
-        <p className="text-sm font-medium">
-          Фото и видео{subtitleCode}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {items.length}/{MAX_FILES}
-        </p>
+      <div className="mb-2 flex items-center justify-between text-sm text-muted-foreground">
+        <span className="font-medium">{productCode ? `Фото и видео • ${productCode}` : 'Фото и видео'}</span>
+        <span>
+          {items.length}/{maxFiles}
+        </span>
       </div>
 
       <div
         {...getRootProps()}
         className={[
-          'rounded-lg border-2 border-dashed p-5 text-center transition-colors',
+          'rounded-lg border-2 border-dashed p-6 text-center transition-colors',
           isDragActive ? 'border-black bg-black/5' : 'border-gray-300',
           disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
         ].join(' ')}
       >
         <input {...getInputProps()} />
-        <div className="mx-auto mb-2 text-4xl text-gray-400">⇧</div>
-        <p className="text-base font-medium">
-          {uploading ? 'Загрузка...' : 'Перетащите файлы сюда или нажмите'}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          До {MAX_FILES} файлов, до {Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB каждый
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          JPG/PNG/WEBP/HEIC/HEIF/MP4/MOV/WEBM
-        </p>
+        <Upload className="mx-auto mb-3 h-10 w-10 text-gray-400" />
+        <p className="text-lg font-medium">{uploading ? 'Загрузка...' : 'Перетащите файлы сюда или нажмите'}</p>
+        <p className="mt-1 text-sm text-gray-500">До {maxFiles} файлов, до {Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB каждый</p>
+        <p className="mt-1 text-sm text-gray-500">JPG/PNG/WEBP/HEIC/HEIF/MP4/MOV/WEBM</p>
+        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
       </div>
-
-      {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
 
       {items.length > 0 && (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {items.map((item, index) => {
-            const isVideo = toMediaKind(item.type || item.mimeType) === 'video'
-            const preview = item.url || item.publicUrl || ''
-            const primary = index === 0
-
+            const kind = toMediaKind(item.mimeType ?? item.mime_type ?? null, (item.type as string) || null)
             return (
               <div
                 key={`${item.id || item.url}-${index}`}
                 className="group relative overflow-hidden rounded-md border bg-white"
               >
                 <div className="aspect-square bg-gray-100">
-                  {isVideo ? (
+                  {kind === 'video' ? (
                     <video
-                      src={preview}
+                      src={item.publicUrl || item.url}
                       className="h-full w-full object-cover"
-                      controls
                       muted
-                      playsInline
+                      controls
+                      preload="metadata"
                     />
                   ) : (
                     <img
-                      src={preview}
-                      alt={`media-${index + 1}`}
+                      src={item.publicUrl || item.url}
+                      alt={`media-${index}`}
                       className="h-full w-full object-cover"
                     />
                   )}
                 </div>
 
-                {primary ? (
-                  <span className="absolute left-2 top-2 rounded bg-white/90 px-2 py-1 text-[10px] font-semibold">
+                <button
+                  type="button"
+                  onClick={() => removeAt(index)}
+                  className="absolute right-2 top-2 rounded bg-black/70 p-1 text-white opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100"
+                  aria-label="Удалить медиа"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPrimary(index)}
+                  className="absolute left-2 top-2 rounded bg-white/90 p-1"
+                  aria-label="Сделать основным"
+                >
+                  <Star className={`h-4 w-4 ${item.is_primary ? 'fill-current' : ''}`} />
+                </button>
+
+                {item.is_primary ? (
+                  <span className="absolute bottom-2 left-2 rounded bg-white/90 px-2 py-1 text-[10px] font-semibold">
                     PRIMARY
                   </span>
                 ) : null}
-
-                <div className="absolute inset-x-0 bottom-0 flex gap-1 bg-black/60 p-1 opacity-0 transition-opacity group-hover:opacity-100">
-                  {!primary && (
-                    <button
-                      type="button"
-                      onClick={() => setPrimary(index)}
-                      className="flex-1 rounded bg-white px-2 py-1 text-[11px] font-medium"
-                    >
-                      Главная
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => removeAt(index)}
-                    className="rounded bg-red-600 px-2 py-1 text-[11px] font-medium text-white"
-                  >
-                    Удалить
-                  </button>
-                </div>
               </div>
             )
           })}
