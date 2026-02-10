@@ -8,6 +8,25 @@ import { MAX_FILE_SIZE, uploadFileDetailed, validateFile } from '@/lib/supabase/
 
 type MediaKind = 'image' | 'video'
 
+const HEIC_EXTENSIONS = ['heic', 'heif']
+const HEIC_MIMES = ['image/heic', 'image/heif']
+
+function isHeicFile(file: File): boolean {
+  const mime = String(file.type || '').toLowerCase()
+  if (HEIC_MIMES.includes(mime)) return true
+  const ext = (file.name.split('.').pop() || '').toLowerCase()
+  return HEIC_EXTENSIONS.includes(ext)
+}
+
+async function convertHeicToJpeg(file: File): Promise<File> {
+  // Dynamic import keeps heic2any out of SSR bundle
+  const heic2any = (await import('heic2any')).default
+  const result = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.9 })
+  const blob = Array.isArray(result) ? result[0] : result
+  const newName = file.name.replace(/\.hei[cf]$/i, '.jpg')
+  return new File([blob], newName, { type: 'image/jpeg' })
+}
+
 export interface AdminMediaItem {
   id?: string
   product_id?: string
@@ -265,57 +284,81 @@ export function MediaUpload({
     setUploading(true)
     setError('')
 
+    const fileErrors: string[] = []
+    const uploaded: AdminMediaItem[] = []
+
     try {
       if (items.length >= maxFiles) {
         throw new Error(`Можно загрузить максимум ${maxFiles} файлов`)
       }
-      if (items.length + acceptedFiles.length > maxFiles) {
-        throw new Error(`Лимит ${maxFiles} файлов. Удалите лишние или загрузите меньше за раз`)
+      const slotsLeft = maxFiles - items.length
+      const filesToProcess = acceptedFiles.slice(0, slotsLeft)
+      if (acceptedFiles.length > slotsLeft) {
+        fileErrors.push(`Загружено первых ${slotsLeft} из ${acceptedFiles.length} файлов (лимит ${maxFiles})`)
       }
 
-      const uploaded: AdminMediaItem[] = []
+      for (const rawFile of filesToProcess) {
+        let file = rawFile
 
-      for (const file of acceptedFiles) {
-        const check = validateFile(file)
-        if (!check.ok) {
-          throw new Error(check.error || `Неподдерживаемый файл: ${file.name}`)
+        // HEIC/HEIF → JPEG conversion
+        if (isHeicFile(rawFile)) {
+          try {
+            file = await convertHeicToJpeg(rawFile)
+          } catch (convErr: any) {
+            fileErrors.push(`${rawFile.name}: не удалось конвертировать HEIC/HEIF — ${String(convErr?.message || convErr)}`)
+            continue // skip this file, process others
+          }
         }
 
-        const result = await uploadFileDetailed(file, uploadFolder)
-        const kind = toMediaKind(result.mimeType, result.kind)
+        const check = validateFile(file)
+        if (!check.ok) {
+          fileErrors.push(`${file.name}: ${check.error || 'Неподдерживаемый формат'}`)
+          continue
+        }
 
-        uploaded.push(
-          normalizeItem(
-            {
-              id: crypto.randomUUID(),
-              url: result.publicUrl || result.url,
-              publicUrl: result.publicUrl || result.url,
-              storagePath: result.storagePath || result.path,
-              path: result.path || result.storagePath,
-              type: kind,
-              media_type: kind,
-              mimeType: result.mimeType,
-              mime_type: result.mimeType,
-              size: result.size,
-              position: items.length + uploaded.length,
-              is_primary: items.length + uploaded.length === 0,
-            },
-            items.length + uploaded.length
+        try {
+          const result = await uploadFileDetailed(file, uploadFolder)
+          const kind = toMediaKind(result.mimeType, result.kind, file.name)
+
+          uploaded.push(
+            normalizeItem(
+              {
+                id: crypto.randomUUID(),
+                url: result.publicUrl || result.url,
+                publicUrl: result.publicUrl || result.url,
+                storagePath: result.storagePath || result.path,
+                path: result.path || result.storagePath,
+                type: kind,
+                media_type: kind,
+                mimeType: result.mimeType,
+                mime_type: result.mimeType,
+                size: result.size,
+                position: items.length + uploaded.length,
+                is_primary: items.length + uploaded.length === 0,
+              },
+              items.length + uploaded.length
+            )
           )
-        )
+        } catch (uploadErr: any) {
+          const raw = String(uploadErr?.message || 'Ошибка загрузки')
+          if (raw.toLowerCase().includes('mime type') && raw.toLowerCase().includes('not supported')) {
+            fileErrors.push(`${file.name}: формат отклонён хранилищем — разрешите MIME в Supabase Storage`)
+          } else {
+            fileErrors.push(`${file.name}: ${raw}`)
+          }
+        }
       }
 
-      const next = normalizeList([...items, ...uploaded]).slice(0, maxFiles)
-      await saveAndEmit(next)
-    } catch (e: any) {
-      const raw = String(e?.message || 'Ошибка загрузки')
-      if (raw.toLowerCase().includes('mime type') && raw.toLowerCase().includes('not supported')) {
-        setError(
-          'Формат отклонён bucket-ом Supabase. Разрешите этот MIME в storage.buckets (ниже дам SQL).'
-        )
-      } else {
-        setError(raw)
+      if (uploaded.length > 0) {
+        const next = normalizeList([...items, ...uploaded]).slice(0, maxFiles)
+        await saveAndEmit(next)
       }
+
+      if (fileErrors.length > 0) {
+        setError(fileErrors.join('\n'))
+      }
+    } catch (e: any) {
+      setError(String(e?.message || 'Ошибка загрузки'))
       console.error('Media upload error:', e)
     } finally {
       setUploading(false)

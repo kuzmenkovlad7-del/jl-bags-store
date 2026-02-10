@@ -42,7 +42,6 @@ export function ProductMediaGallery({ product, name }: ProductMediaGalleryProps)
             key={selected.url}
             src={selected.url}
             controls
-            muted
             playsInline
             preload="metadata"
             className="block max-h-[70vh] w-full object-contain"
@@ -64,7 +63,7 @@ export function ProductMediaGallery({ product, name }: ProductMediaGalleryProps)
 
       {/* Thumbnail strip */}
       {allMedia.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex gap-2 overflow-x-auto py-2 px-0.5">
           {allMedia.map((item, index) => {
             const isVideo = isVideoMedia(item)
             const isActive = index === selectedIndex

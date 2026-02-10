@@ -394,7 +394,6 @@ export function ProductDialog({
 
           {product?.id && (
             <div className="border-t pt-4">
-              <Label className="mb-2 block">{ta('productForm.media')}</Label>
               <MediaUpload
                 productId={product?.id ?? null}
                 productCode={formData.code}
