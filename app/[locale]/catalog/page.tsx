@@ -267,21 +267,34 @@ export default function CatalogPage() {
             >
               <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100 mb-4">
                 {(() => {
-                  const primaryMedia = product.media?.find((m) => m.is_primary && m.media_type === 'photo')
-                  const firstMedia = product.media?.find((m) => m.media_type === 'photo')
-                  const displayMedia = primaryMedia || firstMedia
+                  const primaryMedia = product.media?.find((m) => m.is_primary)
+                  const displayMedia = primaryMedia || product.media?.[0]
+                  const isVideo = displayMedia?.media_type === 'video'
 
-                  return displayMedia ? (
+                  if (!displayMedia) {
+                    return (
+                      <div className="flex items-center justify-center h-full text-muted-foreground">
+                        <span className="text-4xl font-bold">{product.code}</span>
+                      </div>
+                    )
+                  }
+
+                  return isVideo ? (
+                    <video
+                      src={displayMedia.url}
+                      className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                      muted
+                      playsInline
+                      preload="metadata"
+                      loop
+                    />
+                  ) : (
                     <Image
                       src={displayMedia.url}
                       alt={locale === 'ru' && product.name_ru ? product.name_ru : product.name_uk}
                       fill
                       className="object-cover transition-transform group-hover:scale-105"
                     />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-muted-foreground">
-                      <span className="text-4xl font-bold">{product.code}</span>
-                    </div>
                   )
                 })()}
 

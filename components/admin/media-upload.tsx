@@ -41,11 +41,28 @@ interface MediaUploadProps {
 const BUCKET = 'product-media'
 const PUBLIC_SEGMENT = `/storage/v1/object/public/${BUCKET}/`
 
-function toMediaKind(mimeType?: string | null, rawType?: string | null): MediaKind {
-  const t = String(rawType || '').toLowerCase()
-  if (t === 'video') return 'video'
-  const m = String(mimeType || '').toLowerCase()
-  if (m.startsWith('video/')) return 'video'
+const VIDEO_MIME_PREFIXES = ['video/']
+const VIDEO_EXTENSIONS = ['mp4', 'mov', 'webm', 'avi', 'mkv', 'm4v']
+const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'gif', 'bmp', 'tiff', 'tif']
+
+function toMediaKind(mimeType?: string | null, rawType?: string | null, fileName?: string | null): MediaKind {
+  const raw = String(rawType || '').toLowerCase()
+  if (raw === 'video') return 'video'
+  if (raw === 'image') return 'image'
+
+  const mime = String(mimeType || '').toLowerCase()
+  for (const prefix of VIDEO_MIME_PREFIXES) {
+    if (mime.startsWith(prefix)) return 'video'
+  }
+  if (mime.startsWith('image/')) return 'image'
+
+  // fallback by file extension
+  if (fileName) {
+    const ext = String(fileName).toLowerCase().split('.').pop() || ''
+    if (VIDEO_EXTENSIONS.includes(ext)) return 'video'
+    if (IMAGE_EXTENSIONS.includes(ext)) return 'image'
+  }
+
   return 'image'
 }
 
@@ -425,7 +442,7 @@ export function MediaUpload({
 
                 {item.is_primary ? (
                   <span className="absolute bottom-2 left-2 rounded bg-white/90 px-2 py-1 text-[10px] font-semibold">
-                    PRIMARY
+                    Основное
                   </span>
                 ) : null}
               </div>

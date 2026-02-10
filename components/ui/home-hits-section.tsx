@@ -94,9 +94,9 @@ export function HomeHitsSection({ locale, maxItems = 4 }: HomeHitsSectionProps) 
         ) : hits.length > 0 ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {hits.map((product) => {
-              const primaryMedia = product.media?.find((m) => m.is_primary && m.media_type === 'photo');
-              const firstMedia = product.media?.find((m) => m.media_type === 'photo');
-              const displayMedia = primaryMedia || firstMedia;
+              const primaryMedia = product.media?.find((m) => m.is_primary);
+              const displayMedia = primaryMedia || product.media?.[0];
+              const isVideo = displayMedia?.media_type === 'video';
 
               const productName =
                 locale === 'ru' && product.name_ru ? product.name_ru : product.name_uk;
@@ -109,12 +109,23 @@ export function HomeHitsSection({ locale, maxItems = 4 }: HomeHitsSectionProps) 
                 >
                   <div className="relative mb-4 aspect-square overflow-hidden rounded-lg bg-gray-100">
                     {displayMedia ? (
-                      <Image
-                        src={displayMedia.url}
-                        alt={productName}
-                        fill
-                        className="object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
+                      isVideo ? (
+                        <video
+                          src={displayMedia.url}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          muted
+                          playsInline
+                          preload="metadata"
+                          loop
+                        />
+                      ) : (
+                        <Image
+                          src={displayMedia.url}
+                          alt={productName}
+                          fill
+                          className="object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      )
                     ) : (
                       <div className="flex h-full items-center justify-center text-muted-foreground">
                         <span className="text-4xl font-bold">{product.code}</span>

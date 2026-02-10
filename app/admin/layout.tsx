@@ -86,9 +86,9 @@ export default function AdminLayout({
               </Link>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="h-9 w-9 sm:h-10 sm:w-auto px-2 sm:px-3 shrink-0">
-            <LogOut className="h-4 w-4 sm:mr-2" />
-            {ta('nav.logout')}
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="h-9 w-9 sm:h-10 sm:w-auto p-2 sm:px-3 shrink-0">
+            <LogOut className="h-4 w-4 sm:mr-2" aria-hidden="true" />
+            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">{ta('nav.logout')}</span>
           </Button>
         </div>
       </nav>

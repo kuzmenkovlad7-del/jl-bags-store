@@ -1,7 +1,7 @@
 export type StockStatus = 'in_stock' | 'low_stock' | 'preorder' | 'out_of_stock'
 export type OrderType = 'retail' | 'drop' | 'wholesale'
 export type OrderStatus = 'new' | 'confirmed' | 'packed' | 'shipped' | 'completed' | 'canceled'
-export type MediaType = 'photo' | 'video'
+export type MediaType = 'photo' | 'image' | 'video'
 
 export interface Product {
   id: string
