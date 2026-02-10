@@ -5,89 +5,148 @@ export const runtime = 'nodejs'
 
 const BUCKET = 'product-media'
 const MAX_SIZE = 100 * 1024 * 1024
-const ALLOWED = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'video/mp4', 'video/quicktime', 'video/webm'])
 
-function getSupabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const service = process.env.SUPABASE_SERVICE_ROLE_KEY
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const ALLOWED = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'video/mp4',
+  'video/quicktime',
+  'video/webm',
+])
 
-  if (!url) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL')
-  if (service) return createClient(url, service)
-  if (anon) return createClient(url, anon)
-
-  throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_SUPABASE_ANON_KEY')
+function extFromName(name: string): string {
+  const n = String(name || '').trim()
+  const dot = n.lastIndexOf('.')
+  if (dot === -1) return ''
+  return n.slice(dot + 1).toLowerCase()
 }
 
-function sanitizeSegment(input: string) {
-  return input.replace(/[^a-zA-Z0-9_-]/g, '_')
+function mimeFromExt(ext: string): string {
+  switch (ext.toLowerCase()) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg'
+    case 'png':
+      return 'image/png'
+    case 'webp':
+      return 'image/webp'
+    case 'heic':
+      return 'image/heic'
+    case 'heif':
+      return 'image/heif'
+    case 'mp4':
+      return 'video/mp4'
+    case 'mov':
+      return 'video/quicktime'
+    case 'webm':
+      return 'video/webm'
+    default:
+      return ''
+  }
+}
+
+function inferKind(mime: string): 'image' | 'video' | 'file' {
+  if (mime.startsWith('image/')) return 'image'
+  if (mime.startsWith('video/')) return 'video'
+  return 'file'
+}
+
+function sanitizeSegment(value: string, fallback: string): string {
+  const v = String(value || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 80)
+  return v || fallback
+}
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url || !key) throw new Error('Supabase env is not configured')
+  return createClient(url, key, { auth: { persistSession: false } })
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = getSupabaseAdmin()
-    const formData = await req.formData()
-    const file = formData.get('file')
+    const form = await req.formData()
+    const picked =
+      form.get('file') ??
+      form.get('media') ??
+      form.get('image') ??
+      form.get('video') ??
+      form.get('asset')
 
-    if (!(file instanceof File)) {
+    if (!picked || typeof picked === 'string') {
       return NextResponse.json({ ok: false, error: 'file is required' }, { status: 400 })
     }
 
-    if (!ALLOWED.has(file.type)) {
-      return NextResponse.json(
-        { ok: false, error: `unsupported file type: ${file.type}` },
-        { status: 415 }
-      )
+    const file = picked as File
+    if (file.size <= 0) {
+      return NextResponse.json({ ok: false, error: 'empty file' }, { status: 400 })
     }
-
     if (file.size > MAX_SIZE) {
-      return NextResponse.json(
-        { ok: false, error: `file too large: ${file.size} bytes` },
-        { status: 413 }
-      )
+      return NextResponse.json({ ok: false, error: 'file is too large (max 100MB)' }, { status: 413 })
     }
 
-    const productIdRaw = String(formData.get('productId') || 'common')
-    const productId = sanitizeSegment(productIdRaw)
-    const ext = (file.name.split('.').pop() || '').toLowerCase() || (file.type === 'video/mp4' ? 'mp4' : 'jpg')
-    const filename = `${Date.now()}-${crypto.randomUUID()}.${ext}`
-    const storagePath = `products/${productId}/${filename}`
+    let mime = String(file.type || '').toLowerCase()
+    if (mime === 'image/jpg') mime = 'image/jpeg'
+    if (!ALLOWED.has(mime)) {
+      const byExt = mimeFromExt(extFromName(file.name))
+      if (!ALLOWED.has(byExt)) {
+        return NextResponse.json({ ok: false, error: 'unsupported mime type' }, { status: 415 })
+      }
+      mime = byExt
+    }
 
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
+    const folder = sanitizeSegment(String(form.get('folder') || 'products'), 'products')
+    const productId = sanitizeSegment(String(form.get('productId') || form.get('product_id') || 'tmp'), 'tmp')
+    const ext = extFromName(file.name) || (mime.split('/')[1] || 'bin')
+    const storagePath = `${folder}/${productId}/${Date.now()}-${crypto.randomUUID()}.${ext}`
+
+    const supabase = getSupabase()
+    const bytes = new Uint8Array(await file.arrayBuffer())
 
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)
-      .upload(storagePath, buffer, {
-        contentType: file.type,
+      .upload(storagePath, bytes, {
+        contentType: mime,
         upsert: false,
         cacheControl: '3600',
       })
 
     if (uploadError) {
       return NextResponse.json(
-        { ok: false, error: uploadError.message, code: (uploadError as any)?.statusCode ?? null },
+        { ok: false, error: uploadError.message || 'upload failed' },
         { status: 500 }
       )
     }
 
     const { data } = supabase.storage.from(BUCKET).getPublicUrl(storagePath)
-    const publicUrl = data.publicUrl
-    const mediaType = file.type.startsWith('video/') ? 'video' : 'image'
+    const url = data.publicUrl
+    const kind = inferKind(mime)
 
     return NextResponse.json({
       ok: true,
-      bucket: BUCKET,
+
+      // основные поля
+      url,
+      publicUrl: url,
       storagePath,
       path: storagePath,
-      publicUrl,
-      url: publicUrl,
-      mediaType,
-      type: mediaType,
+
+      // совместимость
+      media: { url, path: storagePath, storagePath, type: kind, mimeType: mime, size: file.size },
+      file: { url, path: storagePath, storagePath, type: kind, mimeType: mime, size: file.size },
+
+      bucket: BUCKET,
+      type: kind,
+      mimeType: mime,
+      size: file.size,
     })
   } catch (e: any) {
     return NextResponse.json(
-      { ok: false, error: e?.message || 'upload failed' },
+      { ok: false, error: e?.message || 'unexpected upload error' },
       { status: 500 }
     )
   }

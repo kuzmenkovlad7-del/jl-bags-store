@@ -5,49 +5,61 @@ export const runtime = 'nodejs'
 
 const BUCKET = 'product-media'
 
-function getSupabaseAdmin() {
+function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const service = process.env.SUPABASE_SERVICE_ROLE_KEY
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!url) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL')
-  if (service) return createClient(url, service)
-  if (anon) return createClient(url, anon)
-
-  throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_SUPABASE_ANON_KEY')
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!url || !key) throw new Error('Supabase env is not configured')
+  return createClient(url, key, { auth: { persistSession: false } })
 }
 
-function extractPath(input: string) {
-  const marker = `/storage/v1/object/public/${BUCKET}/`
-  if (input.includes(marker)) return decodeURIComponent(input.split(marker)[1] || '')
-  return input
+function normalizeStoragePath(input: string): string {
+  let value = String(input || '').trim()
+  if (!value) return ''
+
+  if (/^https?:\/\//i.test(value)) {
+    try {
+      const u = new URL(value)
+      const marker = `/storage/v1/object/public/${BUCKET}/`
+      const idx = u.pathname.indexOf(marker)
+      if (idx >= 0) value = u.pathname.slice(idx + marker.length)
+      else value = u.pathname
+    } catch {
+      // keep original
+    }
+  }
+
+  value = value.replace(/^\/+/, '')
+  value = value.replace(new RegExp(`^${BUCKET}/`), '')
+  return decodeURIComponent(value)
 }
 
-export async function POST(req: NextRequest) {
+async function handleDelete(req: NextRequest) {
   try {
-    const supabase = getSupabaseAdmin()
-    const body = await req.json().catch(() => ({}))
+    const body = (await req.json().catch(() => ({}))) as any
+    const raw = String(body?.storagePath || body?.path || body?.url || '')
+    const storagePath = normalizeStoragePath(raw)
 
-    const candidate =
-      String(body?.storagePath || body?.path || body?.url || '').trim()
-
-    if (!candidate) {
-      return NextResponse.json({ ok: false, error: 'storagePath/path/url is required' }, { status: 400 })
+    if (!storagePath) {
+      return NextResponse.json({ ok: false, error: 'storagePath is required' }, { status: 400 })
     }
 
-    const storagePath = extractPath(candidate)
-
+    const supabase = getSupabase()
     const { error } = await supabase.storage.from(BUCKET).remove([storagePath])
 
     if (error) {
-      return NextResponse.json({ ok: false, error: error.message }, { status: 500 })
+      return NextResponse.json({ ok: false, error: error.message || 'delete failed' }, { status: 500 })
     }
 
-    return NextResponse.json({ ok: true, storagePath })
+    return NextResponse.json({ ok: true, storagePath, path: storagePath })
   } catch (e: any) {
-    return NextResponse.json(
-      { ok: false, error: e?.message || 'delete failed' },
-      { status: 500 }
-    )
+    return NextResponse.json({ ok: false, error: e?.message || 'delete failed' }, { status: 500 })
   }
+}
+
+export async function POST(req: NextRequest) {
+  return handleDelete(req)
+}
+
+export async function DELETE(req: NextRequest) {
+  return handleDelete(req)
 }
