@@ -7,7 +7,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Metadata } from 'next'
 import { supabase } from '@/lib/supabase/client'
-import { Product } from '@/lib/types'
+import { Product, Category } from '@/lib/types'
 import { Locale, t } from '@/lib/i18n'
 import { formatPrice } from '@/lib/utils'
 import { ProductClient } from './product-client'
@@ -112,6 +112,18 @@ async function getSimilarProducts(productId: string): Promise<Product[]> {
   return (data || []).map((p: any) => ({ ...p, media: sortMedia(p.media) })) as Product[]
 }
 
+async function getProductCategories(productId: string): Promise<Category[]> {
+  const { data } = await supabase
+    .from('product_categories')
+    .select('category:categories(id, slug, name_uk, name_ru, is_active, sort_order, created_at)')
+    .eq('product_id', productId)
+
+  if (!data) return []
+  return (data as any[])
+    .map((row) => row.category)
+    .filter((c: any) => c && c.is_active === true) as Category[]
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -146,7 +158,10 @@ export default async function ProductPage({
     notFound()
   }
 
-  const similarProducts = await getSimilarProducts(String(product.id))
+  const [similarProducts, productCategories] = await Promise.all([
+    getSimilarProducts(String(product.id)),
+    getProductCategories(String(product.id)),
+  ])
   const name = locale === 'ru' && product.name_ru ? product.name_ru : product.name_uk
   const description =
     locale === 'ru' && product.description_ru
@@ -157,7 +172,7 @@ export default async function ProductPage({
     <div className="container py-8">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mb-16">
         <ProductMediaGallery product={product} locale={locale} name={name} />
-        <ProductClient product={product} locale={locale} />
+        <ProductClient product={product} locale={locale} categories={productCategories} />
       </div>
 
       <script

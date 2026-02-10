@@ -6,6 +6,7 @@ export type MediaType = 'photo' | 'image' | 'video'
 export interface Product {
   id: string
   code: string
+  model?: string | null
   name_uk: string
   name_ru: string | null
   slug: string

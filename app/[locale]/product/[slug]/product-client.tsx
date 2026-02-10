@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Product } from '@/lib/types'
+import { Product, Category } from '@/lib/types'
 import { Locale, t } from '@/lib/i18n'
 import { formatPrice } from '@/lib/utils'
 import { OrderDialog } from '@/components/order-dialog'
@@ -11,9 +11,10 @@ import { OrderType } from '@/lib/types'
 interface ProductClientProps {
   product: Product
   locale: Locale
+  categories: Category[]
 }
 
-export function ProductClient({ product, locale }: ProductClientProps) {
+export function ProductClient({ product, locale, categories }: ProductClientProps) {
   const [orderDialogOpen, setOrderDialogOpen] = useState(false)
   const [orderType, setOrderType] = useState<OrderType>('retail')
   const [selectedColor, setSelectedColor] = useState('')
@@ -37,14 +38,28 @@ export function ProductClient({ product, locale }: ProductClientProps) {
   const currentPrice =
     orderType === 'retail' ? product.price_retail : product.price_drop
 
+  const categoryLabel =
+    categories.length > 0
+      ? categories
+          .map((c) => (locale === 'ru' && c.name_ru ? c.name_ru : c.name_uk))
+          .join(', ')
+      : locale === 'ru'
+        ? 'не указана'
+        : 'не вказана'
+
   return (
     <div className="space-y-6">
       <div>
         <p className="text-sm text-muted-foreground mb-1">
-          {t(locale, 'product.code')}: {product.code}
+          {t(locale, 'product.code')}: {product.model || product.code}
         </p>
         <h1 className="text-3xl font-bold mb-4">{name}</h1>
-        <p className="text-muted-foreground">{description}</p>
+        <p className="text-muted-foreground whitespace-pre-line">
+          {description.replace(/\r\n/g, '\n')}
+        </p>
+        <p className="text-sm text-muted-foreground mt-3">
+          {locale === 'ru' ? 'Категория' : 'Категорія'}: {categoryLabel}
+        </p>
       </div>
 
       <div>
