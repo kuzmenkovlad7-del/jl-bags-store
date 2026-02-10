@@ -48,6 +48,15 @@ export default function AdminOrdersPage() {
     loadOrders()
   }
 
+  function orderTypeLabel(type: string): string {
+    switch (type) {
+      case 'retail': return ta('orders.typeRetail')
+      case 'drop': return ta('orders.typeDrop')
+      case 'wholesale': return ta('orders.typeWholesale')
+      default: return type
+    }
+  }
+
   if (loading) {
     return <div>{ta('orders.loading')}</div>
   }
@@ -66,7 +75,6 @@ export default function AdminOrdersPage() {
               <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.type')}</th>
               <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.items')}</th>
               <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.status')}</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.webhook')}</th>
               <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.date')}</th>
             </tr>
           </thead>
@@ -92,7 +100,7 @@ export default function AdminOrdersPage() {
                 </td>
                 <td className="px-4 py-3 text-sm">
                   <span className="inline-flex px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
-                    {order.order_type}
+                    {orderTypeLabel(order.order_type)}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm">
@@ -122,24 +130,6 @@ export default function AdminOrdersPage() {
                       <SelectItem value="canceled">{ta('orders.statusCanceled')}</SelectItem>
                     </SelectContent>
                   </Select>
-                </td>
-                <td className="px-4 py-3 text-sm">
-                  <span
-                    className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                      order.webhook_status === 'success'
-                        ? 'bg-green-100 text-green-800'
-                        : order.webhook_status === 'failed'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    {order.webhook_status || 'pending'}
-                  </span>
-                  {order.webhook_error && (
-                    <div className="text-xs text-red-600 mt-1">
-                      {order.webhook_error}
-                    </div>
-                  )}
                 </td>
                 <td className="px-4 py-3 text-sm">
                   {new Date(order.created_at).toLocaleDateString()}

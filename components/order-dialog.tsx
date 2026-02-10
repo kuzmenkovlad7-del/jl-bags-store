@@ -21,6 +21,25 @@ interface OrderDialogProps {
   price: number
 }
 
+/** Normalize Ukrainian phone to +380XXXXXXXXX format */
+function normalizePhone(raw: string): string {
+  const digits = raw.replace(/\D/g, '')
+  if (!digits) return raw
+  if (digits.startsWith('380')) return `+${digits}`
+  if (digits.startsWith('0')) return `+38${digits}`
+  return `+380${digits}`
+}
+
+const EMPTY_FORM = {
+  customer_name: '',
+  phone: '',
+  telegram: '',
+  city: '',
+  branch: '',
+  delivery_method: 'nova',
+  comment: '',
+}
+
 export function OrderDialog({
   open,
   onOpenChange,
@@ -32,18 +51,21 @@ export function OrderDialog({
 }: OrderDialogProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    customer_name: '',
-    phone: '',
-    telegram: '',
-    city: '',
-    delivery_method: 'nova',
-    comment: '',
-  })
+  const [formData, setFormData] = useState({ ...EMPTY_FORM })
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
+
+    // Prepend branch info to comment so admin sees it in the orders table
+    const deptLabel = locale === 'ru' ? 'Отд.' : 'Відд.'
+    const commentParts: string[] = []
+    if (formData.branch.trim()) {
+      commentParts.push(`${deptLabel} №${formData.branch.trim()}`)
+    }
+    if (formData.comment.trim()) {
+      commentParts.push(formData.comment.trim())
+    }
 
     try {
       const response = await fetch('/api/orders', {
@@ -51,7 +73,12 @@ export function OrderDialog({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           order_type: orderType,
-          ...formData,
+          customer_name: formData.customer_name,
+          phone: normalizePhone(formData.phone),
+          telegram: formData.telegram || null,
+          city: formData.city,
+          delivery_method: formData.delivery_method,
+          comment: commentParts.join(' | ') || null,
           items: [
             {
               product_code: productCode,
@@ -71,18 +98,11 @@ export function OrderDialog({
       })
 
       onOpenChange(false)
-      setFormData({
-        customer_name: '',
-        phone: '',
-        telegram: '',
-        city: '',
-        delivery_method: 'nova',
-        comment: '',
-      })
-    } catch (error) {
+      setFormData({ ...EMPTY_FORM })
+    } catch {
       toast({
-        title: 'Error',
-        description: 'Failed to create order',
+        title: locale === 'ru' ? 'Ошибка' : 'Помилка',
+        description: locale === 'ru' ? 'Не удалось создать заказ' : 'Не вдалося створити замовлення',
         variant: 'destructive',
       })
     } finally {
@@ -97,91 +117,94 @@ export function OrderDialog({
           <DialogTitle>{t(locale, 'order.title')}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Имя и фамилия / Ім'я та прізвище */}
           <div>
             <Label htmlFor="name">{t(locale, 'order.name')}</Label>
             <Input
               id="name"
               required
               value={formData.customer_name}
-              onChange={(e) =>
-                setFormData({ ...formData, customer_name: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
             />
           </div>
 
+          {/* Phone with +38 prefix UX */}
           <div>
             <Label htmlFor="phone">{t(locale, 'order.phone')}</Label>
             <Input
               id="phone"
               type="tel"
               required
+              placeholder="+38 (0XX) XXX-XX-XX"
               value={formData.phone}
-              onChange={(e) =>
-                setFormData({ ...formData, phone: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             />
           </div>
 
+          {/* Telegram optional */}
           <div>
             <Label htmlFor="telegram">{t(locale, 'order.telegram')}</Label>
             <Input
               id="telegram"
               value={formData.telegram}
-              onChange={(e) =>
-                setFormData({ ...formData, telegram: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, telegram: e.target.value })}
             />
           </div>
 
-          <div>
-            <Label htmlFor="city">{t(locale, 'order.city')}</Label>
-            <Input
-              id="city"
-              value={formData.city}
-              onChange={(e) =>
-                setFormData({ ...formData, city: e.target.value })
-              }
-            />
-          </div>
-
+          {/* Delivery method — Нова Пошта / Укрпошта only */}
           <div>
             <Label htmlFor="delivery">{t(locale, 'order.delivery')}</Label>
             <Select
               value={formData.delivery_method}
-              onValueChange={(value) =>
-                setFormData({ ...formData, delivery_method: value })
-              }
+              onValueChange={(value) => setFormData({ ...formData, delivery_method: value })}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="nova">
-                  {t(locale, 'order.delivery_nova')}
-                </SelectItem>
-                <SelectItem value="ukr">
-                  {t(locale, 'order.delivery_ukr')}
-                </SelectItem>
-                <SelectItem value="courier">
-                  {t(locale, 'order.delivery_courier')}
-                </SelectItem>
+                <SelectItem value="nova">{t(locale, 'order.delivery_nova')}</SelectItem>
+                <SelectItem value="ukr">{t(locale, 'order.delivery_ukr')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
+          {/* Город / Місто — required */}
+          <div>
+            <Label htmlFor="city">{t(locale, 'order.city')}</Label>
+            <Input
+              id="city"
+              required
+              value={formData.city}
+              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+            />
+          </div>
+
+          {/* Отделение / Відділення — required */}
+          <div>
+            <Label htmlFor="branch">{t(locale, 'order.department')}</Label>
+            <Input
+              id="branch"
+              required
+              placeholder={locale === 'ru' ? 'Номер отделения' : 'Номер відділення'}
+              value={formData.branch}
+              onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
+            />
+          </div>
+
+          {/* Comment optional */}
           <div>
             <Label htmlFor="comment">{t(locale, 'order.comment')}</Label>
             <Textarea
               id="comment"
               value={formData.comment}
-              onChange={(e) =>
-                setFormData({ ...formData, comment: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
             />
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Sending...' : t(locale, 'order.submit')}
+            {loading
+              ? (locale === 'ru' ? 'Отправка...' : 'Відправка...')
+              : t(locale, 'order.submit')}
           </Button>
         </form>
       </DialogContent>
