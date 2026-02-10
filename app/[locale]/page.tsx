@@ -83,7 +83,7 @@ export default function HomePage({
                 const Icon = category.icon;
                 return (
                   <motion.div key={category.slug} variants={fadeInUp}>
-                    <Link href={`/${locale}/catalog`} className="group block">
+                    <Link href={`/${locale}/catalog/${category.slug}`} className="group block">
                       <div className="relative aspect-square bg-white border-2 border-gray-200 rounded-2xl overflow-hidden transition-all duration-300 hover:border-black hover:shadow-xl">
                         <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center gap-3">
                           <div className="transition-transform group-hover:scale-110 duration-300">
