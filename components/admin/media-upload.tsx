@@ -1,173 +1,213 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { Upload, X, Image as ImageIcon, Video } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { ProductMedia } from '@/lib/types'
-import { ta } from '@/lib/admin-i18n'
-import Image from 'next/image'
+import {
+  ALLOWED_MIME_TYPES,
+  MAX_FILE_SIZE,
+  removeFile,
+  uploadFileDetailed,
+} from '@/lib/supabase/storage'
 
-interface MediaUploadProps {
-  productId: string
-  productCode: string
-  media: ProductMedia[]
-  onMediaUpdate: () => void
+type MediaKind = 'image' | 'video'
+
+export type MediaItem = {
+  id?: string
+  url: string
+  publicUrl?: string
+  path?: string
+  storagePath?: string
+  type?: MediaKind | string
+  mimeType?: string
+  size?: number
+  position?: number
+  is_primary?: boolean
 }
 
-export function MediaUpload({ productId, productCode, media, onMediaUpdate }: MediaUploadProps) {
+type MediaUploadProps = {
+  value?: MediaItem[]
+  onChange?: (next: MediaItem[]) => void
+  productId?: string | number | null
+  disabled?: boolean
+  className?: string
+  [key: string]: unknown
+}
+
+const ACCEPT: Record<string, string[]> = {
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/png': ['.png'],
+  'image/webp': ['.webp'],
+  'image/heic': ['.heic'],
+  'image/heif': ['.heif'],
+  'video/mp4': ['.mp4'],
+  'video/quicktime': ['.mov'],
+  'video/webm': ['.webm'],
+}
+
+function normalizeItem(item: MediaItem): MediaItem {
+  const url = item.url || item.publicUrl || ''
+  return {
+    ...item,
+    url,
+    publicUrl: item.publicUrl || url,
+    storagePath: item.storagePath || item.path,
+    path: item.path || item.storagePath,
+    type: item.type || (item.mimeType?.startsWith('video/') ? 'video' : 'image'),
+  }
+}
+
+export default function MediaUpload({
+  value = [],
+  onChange,
+  productId = 'new',
+  disabled = false,
+  className = '',
+}: MediaUploadProps) {
   const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState('')
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: {
-      'image/*': ['.jpg', '.jpeg', '.png', '.webp'],
-      'video/*': ['.mp4', '.webm'],
-    },
-    maxSize: 10485760, // 10MB
-    onDrop: async (acceptedFiles) => {
-      if (!acceptedFiles.length) return
-      setUploading(true)
+  const media = useMemo(() => (value || []).map(normalizeItem), [value])
 
-      try {
-        for (const file of acceptedFiles) {
-          const formData = new FormData()
-          formData.append('file', file)
-          formData.append('productId', productId)
-          formData.append('productCode', productCode)
+  const onDrop = async (acceptedFiles: File[]) => {
+    if (!acceptedFiles.length || disabled || uploading) return
 
-          const res = await fetch('/api/admin/media/upload', {
-            method: 'POST',
-            body: formData,
-          })
+    setUploading(true)
+    setError('')
 
-          if (!res.ok) throw new Error('Upload failed')
+    try {
+      const uploaded: MediaItem[] = []
+
+      for (const file of acceptedFiles) {
+        if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+          throw new Error(`Неподдерживаемый формат: ${file.type || file.name}`)
         }
 
-        onMediaUpdate()
-      } catch (error) {
-        console.error('Upload error:', error)
-        alert(ta('media.errorUpload'))
-      } finally {
-        setUploading(false)
+        if (file.size > MAX_FILE_SIZE) {
+          throw new Error(`Файл слишком большой. Максимум ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB`)
+        }
+
+        // ВАЖНО: прямой upload в Supabase, без /api/admin/media/upload
+        const result = await uploadFileDetailed(file, `products/${productId}`)
+        if (!result.ok) throw new Error(result.error || 'Upload failed')
+
+        uploaded.push({
+          id: crypto.randomUUID(),
+          url: result.url,
+          publicUrl: result.publicUrl,
+          storagePath: result.storagePath,
+          path: result.path,
+          type: result.type,
+          mimeType: result.mimeType,
+          size: result.size,
+          position: media.length + uploaded.length,
+          is_primary: media.length + uploaded.length === 0,
+        })
       }
-    },
+
+      onChange?.([...media, ...uploaded])
+    } catch (e: any) {
+      const msg = e?.message || 'Ошибка загрузки'
+      setError(msg)
+      console.error('Upload error:', e)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const removeAt = async (index: number) => {
+    const item = media[index]
+    if (!item) return
+
+    try {
+      const storageRef = item.storagePath || item.path || item.url
+      if (storageRef) await removeFile(storageRef)
+    } catch (e) {
+      console.error('Delete media error:', e)
+    }
+
+    const next = media
+      .filter((_, i) => i !== index)
+      .map((m, i) => ({ ...m, position: i }))
+
+    if (next.length > 0 && !next.some((m) => m.is_primary)) {
+      next[0].is_primary = true
+    }
+
+    onChange?.(next)
+  }
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: ACCEPT,
+    disabled: disabled || uploading,
+    maxSize: MAX_FILE_SIZE,
+    multiple: true,
   })
 
-  async function handleDelete(mediaId: string, storagePath?: string) {
-    if (!confirm(ta('media.confirmDelete'))) return
-
-    try {
-      const res = await fetch('/api/admin/media/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mediaId, storagePath }),
-      })
-
-      if (!res.ok) throw new Error('Delete failed')
-      onMediaUpdate()
-    } catch (error) {
-      console.error('Delete error:', error)
-      alert(ta('media.errorDelete'))
-    }
-  }
-
-  async function handleSetPrimary(mediaId: string) {
-    try {
-      const res = await fetch('/api/admin/media/set-primary', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mediaId, productId }),
-      })
-
-      if (!res.ok) throw new Error('Set primary failed')
-      onMediaUpdate()
-    } catch (error) {
-      console.error('Set primary error:', error)
-      alert(ta('common.error'))
-    }
-  }
-
-  const photos = media.filter((m) => m.media_type === 'photo')
-  const videos = media.filter((m) => m.media_type === 'video')
-
   return (
-    <div className="space-y-4">
+    <div className={className}>
       <div
         {...getRootProps()}
-        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-          isDragActive ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-primary'
-        }`}
+        className={[
+          'rounded-lg border-2 border-dashed p-6 text-center transition-colors',
+          isDragActive ? 'border-black bg-black/5' : 'border-gray-300',
+          disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
+        ].join(' ')}
       >
         <input {...getInputProps()} />
-        <Upload className="h-10 w-10 mx-auto mb-4 text-gray-400" />
-        {uploading ? (
-          <p className="text-sm text-gray-600">{ta('media.uploading')}</p>
-        ) : (
-          <>
-            <p className="text-sm text-gray-600 mb-1">{ta('media.dragDrop')}</p>
-            <p className="text-xs text-gray-400">{ta('media.maxSize')}</p>
-          </>
-        )}
+        <div className="mx-auto mb-3 text-4xl text-gray-400">⇧</div>
+
+        <p className="text-lg font-medium">
+          {uploading ? 'Загрузка...' : 'Перетащите файлы сюда или нажмите'}
+        </p>
+
+        <p className="mt-2 text-sm text-gray-500">
+          Максимум {Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB, JPG/PNG/WEBP/HEIC/HEIF/MP4/MOV/WEBM
+        </p>
+
+        {error ? <p className="mt-3 text-sm text-red-600">{error}</p> : null}
       </div>
 
-      {photos.length > 0 && (
-        <div>
-          <h4 className="font-medium mb-2">{ta('media.photos')} ({photos.length})</h4>
-          <div className="grid grid-cols-4 gap-4">
-            {photos.map((item) => (
-              <div key={item.id} className="relative group">
-                <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
-                  <Image src={item.url} alt="" fill className="object-cover" />
-                </div>
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                  {!item.is_primary && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="h-6 px-2 text-xs"
-                      onClick={() => handleSetPrimary(item.id)}
-                    >
-                      {ta('media.setPrimary')}
-                    </Button>
+      {media.length > 0 && (
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {media.map((item, index) => {
+            const isVideo = String(item.type || '').startsWith('video')
+            return (
+              <div key={`${item.url}-${index}`} className="group relative overflow-hidden rounded-md border bg-white">
+                <div className="aspect-square bg-gray-100">
+                  {isVideo ? (
+                    <video
+                      src={item.url}
+                      className="h-full w-full object-cover"
+                      muted
+                      playsInline
+                    />
+                  ) : (
+                    <img
+                      src={item.url}
+                      alt={`media-${index}`}
+                      className="h-full w-full object-cover"
+                    />
                   )}
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="h-6 w-6 p-0"
-                    onClick={() => handleDelete(item.id, item.storage_path)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
                 </div>
-                {item.is_primary && (
-                  <div className="absolute top-2 left-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded">
-                    {ta('media.setPrimary')}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {videos.length > 0 && (
-        <div>
-          <h4 className="font-medium mb-2">{ta('media.videos')} ({videos.length})</h4>
-          <div className="space-y-2">
-            {videos.map((item) => (
-              <div key={item.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                <Video className="h-5 w-5 text-gray-400" />
-                <span className="text-sm flex-1 truncate">{item.url}</span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => handleDelete(item.id, item.storage_path)}
+                <button
+                  type="button"
+                  onClick={() => removeAt(index)}
+                  className="absolute right-2 top-2 rounded-full bg-black/75 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100"
+                  aria-label="Удалить"
                 >
-                  <X className="h-4 w-4" />
-                </Button>
+                  ✕
+                </button>
+
+                {item.is_primary ? (
+                  <span className="absolute left-2 top-2 rounded bg-white/90 px-2 py-1 text-[10px] font-semibold">
+                    PRIMARY
+                  </span>
+                ) : null}
               </div>
-            ))}
-          </div>
+            )
+          })}
         </div>
       )}
     </div>
