@@ -98,23 +98,24 @@ export default function AdminOrdersPage() {
                 <td className="px-4 py-3 text-sm font-mono text-xs">
                   {order.id.slice(0, 8)}
                 </td>
-                <td className="px-4 py-3 text-sm">
+                <td className="px-4 py-3 text-sm max-w-xs">
                   <div className="font-medium">{order.customer_name}</div>
                   <div className="text-xs text-muted-foreground">{order.phone}</div>
                   {order.telegram && (
-                    <div className="text-xs text-muted-foreground">{order.telegram}</div>
+                    <div className="text-xs text-muted-foreground">TG: {order.telegram}</div>
                   )}
-                  {(order.delivery_method || order.city) && (
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {[deliveryLabel(order.delivery_method), order.city].filter(Boolean).join(', ')}
-                    </div>
+                  {order.city && (
+                    <div className="text-xs text-muted-foreground">г. {order.city}</div>
+                  )}
+                  {order.delivery_method && (
+                    <div className="text-xs text-muted-foreground">{deliveryLabel(order.delivery_method)}</div>
                   )}
                   {(() => {
                     const { branch, rest } = parseComment(order.comment ?? null)
                     return (
                       <>
                         {branch && (
-                          <div className="text-xs text-muted-foreground">Відд. №{branch}</div>
+                          <div className="text-xs text-muted-foreground">Отд. №{branch}</div>
                         )}
                         {rest && (
                           <div className="text-xs text-gray-400 italic">{rest}</div>

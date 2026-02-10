@@ -118,7 +118,8 @@ export default function AdminProductsPage() {
     switch (status) {
       case 'in_stock': return 'В наличии'
       case 'low_stock': return 'Заканчивается'
-      case 'preorder': return 'Под заказ'
+      case 'preorder':
+      case 'pre_order': return 'Под заказ'
       case 'out_of_stock': return 'Нет в наличии'
       default: return status
     }
