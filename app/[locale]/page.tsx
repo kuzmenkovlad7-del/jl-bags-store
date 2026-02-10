@@ -30,6 +30,11 @@ const visualCategories = [
   { slug: 'gamanets_cholovichyi', name_uk: 'Гаманець чоловічий', name_ru: 'Кошелек мужской', icon: Wallet },
 ];
 
+/** Normalize slug for comparison: decode, lowercase, trim, hyphens → underscores */
+function normalizeSlug(s: string): string {
+  return decodeURIComponent(s).toLowerCase().trim().replace(/-/g, '_');
+}
+
 const fadeInUp = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
@@ -51,9 +56,8 @@ export default function HomePage({
 }) {
   const locale = params.locale as Locale;
 
-  // Load active category slugs from DB; fall back to showing all on error
-  const allSlugs = visualCategories.map((c) => c.slug);
-  const [activeSlugs, setActiveSlugs] = useState<Set<string>>(new Set(allSlugs));
+  // null = not yet loaded → show all; Set = loaded from DB
+  const [activeSlugs, setActiveSlugs] = useState<Set<string> | null>(null);
 
   useEffect(() => {
     supabase
@@ -62,10 +66,19 @@ export default function HomePage({
       .eq('is_active', true)
       .then(({ data }: { data: Array<{ slug: string }> | null }) => {
         if (data && data.length > 0) {
-          setActiveSlugs(new Set(data.map((c) => c.slug)));
+          // Normalize DB slugs so hyphens and underscores both match
+          setActiveSlugs(new Set(data.map((c) => normalizeSlug(c.slug))));
         }
+        // On error or empty array → keep null → fallback to show all
       });
   }, []);
+
+  // Filter visualCategories by active DB slugs (normalized); fallback to all if 0 results
+  const filteredCategories =
+    activeSlugs === null
+      ? visualCategories
+      : visualCategories.filter((c) => activeSlugs.has(normalizeSlug(c.slug)));
+  const categories = filteredCategories.length > 0 ? filteredCategories : visualCategories;
 
   const heroSlides = [
     {
@@ -97,7 +110,7 @@ export default function HomePage({
             </motion.h2>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-6">
-              {visualCategories.filter((c) => activeSlugs.has(c.slug)).map((category) => {
+              {categories.map((category) => {
                 const Icon = category.icon;
                 return (
                   <motion.div key={category.slug} variants={fadeInUp}>

@@ -20,39 +20,56 @@ function normalizeSlug(raw: string): string {
   return decodeURIComponent(raw).toLowerCase().trim()
 }
 
+/** Minimal alias map: old/alternative slug → canonical DB slug */
+const SLUG_ALIASES: Record<string, string> = {
+  'klatchy': 'klatch_krosbodi',
+  'klatch': 'klatch_krosbodi',
+  'sale': 'rozprodazh',
+  'school': 'shkilnyi_ryukzak',
+  'backpacks': 'ryukzak_tekstil',
+  'wallets': 'gamanets_zhinochyi',
+}
+
 /**
  * Resolve a slug to a DB category.
  * 1. Exact match
  * 2. Hyphen ↔ underscore variant (e.g. "ryukzak-tekstil" → "ryukzak_tekstil")
+ * 3. Alias map lookup
  */
 async function findCategory(rawSlug: string): Promise<Category | null> {
   const slug = normalizeSlug(rawSlug)
 
-  // Exact match
-  const { data: exact } = await supabase
-    .from('categories')
-    .select('id, slug, name_uk, name_ru, is_active, sort_order, created_at')
-    .eq('slug', slug)
-    .eq('is_active', true)
-    .single()
+  async function queryBySlug(s: string): Promise<Category | null> {
+    const { data } = await supabase
+      .from('categories')
+      .select('id, slug, name_uk, name_ru, is_active, sort_order, created_at')
+      .eq('slug', s)
+      .eq('is_active', true)
+      .single()
+    return (data as Category) ?? null
+  }
 
-  if (exact) return exact as Category
+  // 1. Exact match
+  const exact = await queryBySlug(slug)
+  if (exact) return exact
 
-  // Hyphen ↔ underscore fallback
+  // 2. Hyphen ↔ underscore fallback
   const altSlug = slug.includes('-')
     ? slug.replace(/-/g, '_')
     : slug.replace(/_/g, '-')
 
-  if (altSlug === slug) return null
+  if (altSlug !== slug) {
+    const alt = await queryBySlug(altSlug)
+    if (alt) return alt
+  }
 
-  const { data: alt } = await supabase
-    .from('categories')
-    .select('id, slug, name_uk, name_ru, is_active, sort_order, created_at')
-    .eq('slug', altSlug)
-    .eq('is_active', true)
-    .single()
+  // 3. Alias map
+  const aliasTarget = SLUG_ALIASES[slug] ?? SLUG_ALIASES[altSlug]
+  if (aliasTarget) {
+    return await queryBySlug(aliasTarget)
+  }
 
-  return (alt as Category) ?? null
+  return null
 }
 
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
