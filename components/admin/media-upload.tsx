@@ -304,8 +304,8 @@ export function MediaUpload({
         if (isHeicFile(rawFile)) {
           try {
             file = await convertHeicToJpeg(rawFile)
-          } catch (convErr: any) {
-            fileErrors.push(`${rawFile.name}: не удалось конвертировать HEIC/HEIF — ${String(convErr?.message || convErr)}`)
+          } catch {
+            fileErrors.push(`${rawFile.name}: не удалось обработать HEIC/HEIF. Загрузите JPG/PNG или конвертируйте фото на устройстве.`)
             continue // skip this file, process others
           }
         }

@@ -406,6 +406,9 @@ export function ProductDialog({
 
           <div className="border-t pt-4">
             <Label className="mb-3 block">{ta('productForm.categories')}</Label>
+            {categories.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Категории не найдены</p>
+            ) : (
             <div className="grid grid-cols-2 gap-3">
               {categories.map((category) => (
                 <div key={category.id} className="flex items-center space-x-2">
@@ -437,6 +440,7 @@ export function ProductDialog({
                 </div>
               ))}
             </div>
+            )}
           </div>
 
           <div className="border-t pt-4">

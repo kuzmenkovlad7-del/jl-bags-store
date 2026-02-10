@@ -114,6 +114,16 @@ export default function AdminProductsPage() {
     setDialogOpen(true)
   }
 
+  function stockLabel(status: string): string {
+    switch (status) {
+      case 'in_stock': return 'В наличии'
+      case 'low_stock': return 'Заканчивается'
+      case 'preorder': return 'Под заказ'
+      case 'out_of_stock': return 'Нет в наличии'
+      default: return status
+    }
+  }
+
   function handleDialogClose() {
     setDialogOpen(false)
     setEditingProduct(null)
@@ -144,11 +154,11 @@ export default function AdminProductsPage() {
                 <div className="text-base font-semibold">{product.code}</div>
               </div>
               <span className="inline-flex rounded-full bg-gray-100 px-2 py-1 text-xs">
-                {product.stock_status}
+                {stockLabel(product.stock_status)}
               </span>
             </div>
 
-            <div className="mb-1 text-sm font-medium">{product.name_uk}</div>
+            <div className="mb-1 text-sm font-medium">{product.name_ru || product.name_uk}</div>
 
             <div className="mb-3 text-xs text-muted-foreground">
               <div>{ta('products.retail')}: {formatPrice(product.price_retail)}</div>
@@ -191,7 +201,7 @@ export default function AdminProductsPage() {
               {products.map((product) => (
                 <tr key={product.id}>
                   <td className="px-4 py-3 text-sm font-medium">{product.code}</td>
-                  <td className="px-4 py-3 text-sm">{product.name_uk}</td>
+                  <td className="px-4 py-3 text-sm">{product.name_ru || product.name_uk}</td>
                   <td className="px-4 py-3 text-sm">
                     <div className="text-xs text-muted-foreground">
                       {ta('products.retail')}: {formatPrice(product.price_retail)}
@@ -202,7 +212,7 @@ export default function AdminProductsPage() {
                   </td>
                   <td className="px-4 py-3 text-sm">
                     <span className="inline-flex rounded-full bg-gray-100 px-2 py-1 text-xs">
-                      {product.stock_status}
+                      {stockLabel(product.stock_status)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm">
