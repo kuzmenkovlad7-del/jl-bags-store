@@ -57,6 +57,21 @@ export default function AdminOrdersPage() {
     }
   }
 
+  function deliveryLabel(method: string): string {
+    switch (method) {
+      case 'nova': return 'Нова Пошта'
+      case 'ukr': return 'Укрпошта'
+      default: return method || ''
+    }
+  }
+
+  function parseComment(comment: string | null): { branch: string | null; rest: string | null } {
+    if (!comment) return { branch: null, rest: null }
+    const m = comment.match(/^(?:Відд\.|Отд\.) №([^|]+?)(?:\s*\|\s*(.+))?$/)
+    if (m) return { branch: m[1].trim(), rest: m[2]?.trim() || null }
+    return { branch: null, rest: comment }
+  }
+
   if (loading) {
     return <div>{ta('orders.loading')}</div>
   }
@@ -71,7 +86,6 @@ export default function AdminOrdersPage() {
             <tr>
               <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.orderNumber')}</th>
               <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.customer')}</th>
-              <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.phone')}</th>
               <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.type')}</th>
               <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.items')}</th>
               <th className="px-4 py-3 text-left text-sm font-medium">{ta('orders.status')}</th>
@@ -85,18 +99,29 @@ export default function AdminOrdersPage() {
                   {order.id.slice(0, 8)}
                 </td>
                 <td className="px-4 py-3 text-sm">
-                  <div>{order.customer_name}</div>
-                  {order.city && (
-                    <div className="text-xs text-muted-foreground">{order.city}</div>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-sm">
-                  <div>{order.phone}</div>
+                  <div className="font-medium">{order.customer_name}</div>
+                  <div className="text-xs text-muted-foreground">{order.phone}</div>
                   {order.telegram && (
-                    <div className="text-xs text-muted-foreground">
-                      {order.telegram}
+                    <div className="text-xs text-muted-foreground">{order.telegram}</div>
+                  )}
+                  {(order.delivery_method || order.city) && (
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {[deliveryLabel(order.delivery_method), order.city].filter(Boolean).join(', ')}
                     </div>
                   )}
+                  {(() => {
+                    const { branch, rest } = parseComment(order.comment ?? null)
+                    return (
+                      <>
+                        {branch && (
+                          <div className="text-xs text-muted-foreground">Відд. №{branch}</div>
+                        )}
+                        {rest && (
+                          <div className="text-xs text-gray-400 italic">{rest}</div>
+                        )}
+                      </>
+                    )
+                  })()}
                 </td>
                 <td className="px-4 py-3 text-sm">
                   <span className="inline-flex px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">

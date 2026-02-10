@@ -87,7 +87,7 @@ export function Footer({ locale, settings }: FooterProps) {
                 href={`tel:${settings.phone}`}
                 className="text-sm text-gray-600 hover:text-black transition-colors"
               >
-                {settings.phone}
+                {settings.phone?.startsWith('+') ? settings.phone : settings.phone?.startsWith('0') ? `+38${settings.phone}` : settings.phone}
               </a>
               <div className="flex gap-3">
                 <a
