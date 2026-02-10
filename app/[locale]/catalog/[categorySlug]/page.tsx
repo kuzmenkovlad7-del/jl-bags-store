@@ -1,11 +1,12 @@
 import { notFound } from 'next/navigation'
+import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
-import { createServerClient } from '@/lib/supabase/server'
+import { supabase } from '@/lib/supabase/client'
 import { type Locale, t } from '@/lib/i18n'
 import { formatPrice } from '@/lib/utils'
-import type { Product, ProductMedia } from '@/lib/types'
+import type { Product, ProductMedia, Category } from '@/lib/types'
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '') || 'https://jl-bags.com'
 
@@ -14,28 +15,62 @@ interface Props {
   searchParams?: Record<string, string | string[] | undefined>
 }
 
-export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
-  const locale = params.locale as Locale
-  const supabase = createServerClient()
+/** Normalize a slug coming from the URL to match DB format */
+function normalizeSlug(raw: string): string {
+  return decodeURIComponent(raw).toLowerCase().trim()
+}
 
-  const { data: category } = await supabase
+/**
+ * Resolve a slug to a DB category.
+ * 1. Exact match
+ * 2. Hyphen ↔ underscore variant (e.g. "ryukzak-tekstil" → "ryukzak_tekstil")
+ */
+async function findCategory(rawSlug: string): Promise<Category | null> {
+  const slug = normalizeSlug(rawSlug)
+
+  // Exact match
+  const { data: exact } = await supabase
     .from('categories')
-    .select('slug, name_uk, name_ru, is_active')
-    .eq('slug', params.categorySlug)
+    .select('id, slug, name_uk, name_ru, is_active, sort_order, created_at')
+    .eq('slug', slug)
     .eq('is_active', true)
     .single()
+
+  if (exact) return exact as Category
+
+  // Hyphen ↔ underscore fallback
+  const altSlug = slug.includes('-')
+    ? slug.replace(/-/g, '_')
+    : slug.replace(/_/g, '-')
+
+  if (altSlug === slug) return null
+
+  const { data: alt } = await supabase
+    .from('categories')
+    .select('id, slug, name_uk, name_ru, is_active, sort_order, created_at')
+    .eq('slug', altSlug)
+    .eq('is_active', true)
+    .single()
+
+  return (alt as Category) ?? null
+}
+
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
+  const locale = params.locale as Locale
+  const category = await findCategory(params.categorySlug)
 
   if (!category) return { title: 'Not found' }
 
   const name =
-    locale === 'ru' && category.name_ru ? (category.name_ru as string) : (category.name_uk as string)
+    locale === 'ru' && category.name_ru ? category.name_ru : category.name_uk
   const title = `${name} | Julia Lebedeva`
   const description =
     locale === 'ru'
       ? `Купить ${name} от Julia Lebedeva. Широкий выбор сумок и аксессуаров по доступным ценам.`
       : `Купити ${name} від Julia Lebedeva. Широкий вибір сумок та аксесуарів за доступними цінами.`
 
-  const canonical = `${SITE_URL}/${locale}/catalog/${params.categorySlug}`
+  // Canonical always points to the canonical DB slug (not the URL slug variant)
+  const canonical = `${SITE_URL}/${locale}/catalog/${category.slug}`
   const hasQuery = searchParams != null && Object.keys(searchParams).length > 0
 
   return {
@@ -44,8 +79,8 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
     alternates: {
       canonical,
       languages: {
-        uk: `${SITE_URL}/uk/catalog/${params.categorySlug}`,
-        ru: `${SITE_URL}/ru/catalog/${params.categorySlug}`,
+        uk: `${SITE_URL}/uk/catalog/${category.slug}`,
+        ru: `${SITE_URL}/ru/catalog/${category.slug}`,
       },
     },
     ...(hasQuery ? { robots: { index: false, follow: true } } : {}),
@@ -54,21 +89,21 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 
 export default async function CategoryPage({ params }: Props) {
   const locale = params.locale as Locale
-  const supabase = createServerClient()
-
-  const { data: category } = await supabase
-    .from('categories')
-    .select('id, slug, name_uk, name_ru, is_active')
-    .eq('slug', params.categorySlug)
-    .eq('is_active', true)
-    .single()
+  const category = await findCategory(params.categorySlug)
 
   if (!category) notFound()
+
+  // If request came in via non-canonical slug (e.g. hyphens instead of underscores),
+  // redirect to the canonical slug URL so SEO is clean.
+  const requestSlug = normalizeSlug(params.categorySlug)
+  if (requestSlug !== category.slug) {
+    redirect(`/${locale}/catalog/${category.slug}`)
+  }
 
   const { data: pcRows } = await supabase
     .from('product_categories')
     .select('product_id')
-    .eq('category_id', category.id as string)
+    .eq('category_id', category.id)
 
   const productIds = (pcRows ?? []).map((r: { product_id: string }) => r.product_id)
 
@@ -85,9 +120,7 @@ export default async function CategoryPage({ params }: Props) {
   }
 
   const categoryName =
-    locale === 'ru' && category.name_ru
-      ? (category.name_ru as string)
-      : (category.name_uk as string)
+    locale === 'ru' && category.name_ru ? category.name_ru : category.name_uk
 
   return (
     <div className="container py-8">

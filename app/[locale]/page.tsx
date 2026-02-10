@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { HomeFaqSection } from '@/components/ui/home-faq-section';
 import { TestimonialSlider } from '@/components/ui/testimonial-slider';
 import { AboutUsSection } from '@/components/ui/about-us-section';
@@ -11,6 +12,7 @@ import Link from 'next/link';
 import { ArrowRight, Shield, Truck, Award, HeadphonesIcon, Backpack, Wallet, ShoppingBag, Package, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Locale, t } from '@/lib/i18n';
+import { supabase } from '@/lib/supabase/client';
 
 // Visual categories
 const visualCategories = [
@@ -49,6 +51,22 @@ export default function HomePage({
 }) {
   const locale = params.locale as Locale;
 
+  // Load active category slugs from DB; fall back to showing all on error
+  const allSlugs = visualCategories.map((c) => c.slug);
+  const [activeSlugs, setActiveSlugs] = useState<Set<string>>(new Set(allSlugs));
+
+  useEffect(() => {
+    supabase
+      ?.from('categories')
+      .select('slug')
+      .eq('is_active', true)
+      .then(({ data }: { data: Array<{ slug: string }> | null }) => {
+        if (data && data.length > 0) {
+          setActiveSlugs(new Set(data.map((c) => c.slug)));
+        }
+      });
+  }, []);
+
   const heroSlides = [
     {
       image: '/home/hero/slide-1.jpg',
@@ -79,7 +97,7 @@ export default function HomePage({
             </motion.h2>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4 md:gap-6">
-              {visualCategories.map((category) => {
+              {visualCategories.filter((c) => activeSlugs.has(c.slug)).map((category) => {
                 const Icon = category.icon;
                 return (
                   <motion.div key={category.slug} variants={fadeInUp}>
