@@ -22,22 +22,23 @@ export default function CatalogPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Get filter values from URL search params
+  // URL filter state
   const search = searchParams.get('search') || ''
   const categoryFilter = searchParams.get('category') || 'all'
+  const categorySlugParam = searchParams.get('category_slug') || ''
   const stockFilter = searchParams.get('stock') || 'all'
   const flagFilter = searchParams.get('flag') || 'all'
   const sortBy = searchParams.get('sort') || 'newest'
 
   useEffect(() => {
     loadData()
-  }, [categoryFilter])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryFilter, categorySlugParam])
 
   async function loadData() {
     setLoading(true)
 
     if (!supabase) {
-      console.error('Supabase client not initialized')
       setLoading(false)
       return
     }
@@ -54,37 +55,45 @@ export default function CatalogPage() {
         setCategories(categoriesData)
       }
 
-      // Load products - simplified query without nested category relation
+      // Resolve effective category ID:
+      // ?category=<UUID>  takes priority (direct filter)
+      // ?category_slug=<slug>  resolves from loaded categories (homepage links)
+      let effectiveCategoryId = categoryFilter
+
+      if (effectiveCategoryId === 'all' && categorySlugParam && categoriesData) {
+        const matched = categoriesData.find((c: Category) => c.slug === categorySlugParam)
+        if (matched) {
+          effectiveCategoryId = matched.id
+        }
+      }
+
+      // Optionally: get product IDs for the resolved category
       let productIds: string[] | null = null
 
-      // If category filter is selected, get product IDs first
-      if (categoryFilter !== 'all') {
-        const { data: categoryProductIds, error: catError } = await supabase
+      if (effectiveCategoryId !== 'all') {
+        const { data: catProducts, error: catError } = await supabase
           .from('product_categories')
           .select('product_id')
-          .eq('category_id', categoryFilter)
+          .eq('category_id', effectiveCategoryId)
 
         if (catError) {
-          console.error('Category filter error, falling back to all products:', catError)
-          // Fallback: show all products if category query fails
-        } else if (categoryProductIds && categoryProductIds.length > 0) {
-          productIds = categoryProductIds.map((p: { product_id: string }) => p.product_id)
+          console.error('Category filter error, showing all products:', catError)
+        } else if (catProducts && catProducts.length > 0) {
+          productIds = catProducts.map((p: { product_id: string }) => p.product_id)
         } else {
-          // True empty state: category selected but no products
+          // Category exists but has no products yet
           setProducts([])
           setLoading(false)
           return
         }
       }
 
-      // Build base query
       let query = supabase
         .from('products')
         .select('*, media:product_media(*)')
         .eq('is_active', true)
         .order('created_at', { ascending: false })
 
-      // Apply category filter if we have product IDs
       if (productIds && productIds.length > 0) {
         query = query.in('id', productIds)
       }
@@ -93,16 +102,12 @@ export default function CatalogPage() {
 
       if (error) {
         console.error('Error loading products:', error)
-        // Fallback: set empty array on error
         setProducts([])
-      } else if (data) {
-        setProducts(data)
       } else {
-        setProducts([])
+        setProducts((data || []) as Product[])
       }
     } catch (error) {
       console.error('Failed to load data:', error)
-      // Fallback: set empty array on exception
       setProducts([])
     } finally {
       setLoading(false)
@@ -110,80 +115,81 @@ export default function CatalogPage() {
   }
 
   function updateSearchParam(key: string, value: string) {
-    const params = new URLSearchParams(searchParams.toString())
+    const next = new URLSearchParams(searchParams.toString())
     if (value === 'all' || value === '' || (key === 'sort' && value === 'newest')) {
-      params.delete(key)
+      next.delete(key)
     } else {
-      params.set(key, value)
+      next.set(key, value)
     }
-    router.push(`/${locale}/catalog?${params.toString()}`, { scroll: false })
+    // When the user changes the category dropdown, drop the category_slug param
+    if (key === 'category') {
+      next.delete('category_slug')
+    }
+    router.push(`/${locale}/catalog?${next.toString()}`, { scroll: false })
   }
 
   function filterAndSortProducts() {
     let filtered = [...products]
 
-    // Search filter (code, name_uk, name_ru)
     if (search) {
-      filtered = filtered.filter((p) => {
-        const searchLower = search.toLowerCase()
-        return (
-          p.code.toLowerCase().includes(searchLower) ||
-          p.name_uk.toLowerCase().includes(searchLower) ||
-          (p.name_ru && p.name_ru.toLowerCase().includes(searchLower))
-        )
-      })
+      const q = search.toLowerCase()
+      filtered = filtered.filter(
+        (p) =>
+          p.code.toLowerCase().includes(q) ||
+          p.name_uk.toLowerCase().includes(q) ||
+          (p.name_ru && p.name_ru.toLowerCase().includes(q)),
+      )
     }
 
-    // Stock filter
     if (stockFilter !== 'all') {
       filtered = filtered.filter((p) => p.stock_status === stockFilter)
     }
 
-    // Flag filter (New/Hits/Sale)
     if (flagFilter !== 'all') {
       filtered = filtered.filter((p) => {
-        switch (flagFilter) {
-          case 'new':
-            return p.is_new === true
-          case 'hit':
-            return p.is_hit === true
-          case 'sale':
-            return p.is_sale === true
-          default:
-            return true
-        }
+        if (flagFilter === 'new') return p.is_new === true
+        if (flagFilter === 'hit') return p.is_hit === true
+        if (flagFilter === 'sale') return p.is_sale === true
+        return true
       })
     }
 
-    // Sort
     filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'newest':
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        case 'code':
-          return a.code.localeCompare(b.code)
-        case 'price_asc':
-          return a.price_retail - b.price_retail
-        case 'price_desc':
-          return b.price_retail - a.price_retail
-        default:
-          return 0
-      }
+      if (sortBy === 'code') return a.code.localeCompare(b.code)
+      if (sortBy === 'price_asc') return a.price_retail - b.price_retail
+      if (sortBy === 'price_desc') return b.price_retail - a.price_retail
+      // default: newest
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
 
     return filtered
   }
+
+  // Derive active category label for display
+  const activeCategoryLabel = (() => {
+    if (categoryFilter !== 'all') {
+      const cat = categories.find((c) => c.id === categoryFilter)
+      return cat ? (locale === 'ru' && cat.name_ru ? cat.name_ru : cat.name_uk) : null
+    }
+    if (categorySlugParam) {
+      const cat = categories.find((c) => c.slug === categorySlugParam)
+      return cat ? (locale === 'ru' && cat.name_ru ? cat.name_ru : cat.name_uk) : null
+    }
+    return null
+  })()
 
   const filteredProducts = filterAndSortProducts()
   const stockStatuses: StockStatus[] = ['in_stock', 'low_stock', 'preorder', 'out_of_stock']
 
   return (
     <div className="container py-8">
-      <h1 className="text-4xl font-bold mb-8">{t(locale, 'catalog.title')}</h1>
+      <h1 className="text-4xl font-bold mb-2">{t(locale, 'catalog.title')}</h1>
+      {activeCategoryLabel && (
+        <p className="text-muted-foreground mb-6">{activeCategoryLabel}</p>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col gap-4 mb-8">
-        {/* Search */}
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -194,10 +200,11 @@ export default function CatalogPage() {
           />
         </div>
 
-        {/* Filter Row */}
         <div className="flex flex-col md:flex-row gap-4">
-          {/* Category Filter */}
-          <Select value={categoryFilter} onValueChange={(value) => updateSearchParam('category', value)}>
+          <Select
+            value={categoryFilter}
+            onValueChange={(value) => updateSearchParam('category', value)}
+          >
             <SelectTrigger className="w-full md:w-48">
               <SelectValue placeholder={t(locale, 'catalog.filter_category')} />
             </SelectTrigger>
@@ -211,7 +218,6 @@ export default function CatalogPage() {
             </SelectContent>
           </Select>
 
-          {/* Flag Filter */}
           <Select value={flagFilter} onValueChange={(value) => updateSearchParam('flag', value)}>
             <SelectTrigger className="w-full md:w-48">
               <SelectValue placeholder={t(locale, 'catalog.filter_flag')} />
@@ -224,7 +230,6 @@ export default function CatalogPage() {
             </SelectContent>
           </Select>
 
-          {/* Stock Filter */}
           <Select value={stockFilter} onValueChange={(value) => updateSearchParam('stock', value)}>
             <SelectTrigger className="w-full md:w-48">
               <SelectValue placeholder={t(locale, 'catalog.filter_stock')} />
@@ -239,7 +244,6 @@ export default function CatalogPage() {
             </SelectContent>
           </Select>
 
-          {/* Sort */}
           <Select value={sortBy} onValueChange={(value) => updateSearchParam('sort', value)}>
             <SelectTrigger className="w-full md:w-48">
               <SelectValue placeholder={t(locale, 'catalog.sort_by')} />
@@ -254,20 +258,25 @@ export default function CatalogPage() {
         </div>
       </div>
 
-      {/* Products Grid */}
       {loading ? (
-        <div className="text-center py-12">Loading...</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i}>
+              <div className="aspect-square animate-pulse rounded-lg bg-gray-200 mb-4" />
+              <div className="h-5 w-2/3 animate-pulse rounded bg-gray-200 mb-2" />
+              <div className="h-4 w-1/3 animate-pulse rounded bg-gray-200" />
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredProducts.map((product) => (
-            <Link
-              key={product.id}
-              href={`/${locale}/product/${product.slug}`}
-              className="group"
-            >
+            <Link key={product.id} href={`/${locale}/product/${product.slug}`} className="group">
               <div className="relative aspect-square overflow-hidden rounded-lg bg-gray-100 mb-4">
                 {(() => {
-                  const primaryMedia = product.media?.find((m) => m.is_primary && m.media_type === 'photo')
+                  const primaryMedia = product.media?.find(
+                    (m) => m.is_primary && m.media_type === 'photo',
+                  )
                   const firstMedia = product.media?.find((m) => m.media_type === 'photo')
                   const displayMedia = primaryMedia || firstMedia
 
@@ -285,7 +294,6 @@ export default function CatalogPage() {
                   )
                 })()}
 
-                {/* Product Flags */}
                 <div className="absolute top-2 left-2 flex flex-col gap-1">
                   {product.is_new && (
                     <span className="bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded">
@@ -321,7 +329,7 @@ export default function CatalogPage() {
 
       {!loading && filteredProducts.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">
-          No products found
+          {t(locale, 'catalog.no_results')}
         </div>
       )}
     </div>

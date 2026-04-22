@@ -13,6 +13,11 @@ export async function POST(request: NextRequest) {
       delivery_method,
       comment,
       items,
+      // Source attribution (optional — added by client from sessionStorage)
+      utm_source,
+      utm_medium,
+      utm_campaign,
+      referrer_url,
     } = body
 
     // Create order
@@ -27,6 +32,11 @@ export async function POST(request: NextRequest) {
         delivery_method,
         comment: comment || null,
         status: 'new',
+        // Attribution fields (columns added in migration 005)
+        utm_source: utm_source || null,
+        utm_medium: utm_medium || null,
+        utm_campaign: utm_campaign || null,
+        referrer_url: referrer_url || null,
       })
       .select()
       .single()
@@ -44,56 +54,56 @@ export async function POST(request: NextRequest) {
       price_snapshot: item.price_snapshot,
     }))
 
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(orderItems)
+    const { error: itemsError } = await supabase.from('order_items').insert(orderItems)
 
     if (itemsError) {
       throw new Error('Failed to create order items')
     }
 
-    // Send webhook
-    const webhookUrl =
-      process.env.N8N_WEBHOOK_URL ||
-      'https://n8n.vladkuzmenko.com/webhook/jl-website'
-
+    // Send webhook — non-blocking, failure does not prevent order creation
+    const webhookUrl = process.env.N8N_WEBHOOK_URL
     let webhookStatus = 'pending'
     let webhookError = null
 
-    try {
-      const webhookResponse = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          order_id: order.id,
-          order_type,
-          customer_name,
-          phone,
-          telegram,
-          city,
-          delivery_method,
-          comment,
-          items,
-          created_at: order.created_at,
-        }),
-      })
+    if (webhookUrl) {
+      try {
+        const webhookResponse = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            order_id: order.id,
+            order_type,
+            customer_name,
+            phone,
+            telegram,
+            city,
+            delivery_method,
+            comment,
+            items,
+            utm_source: utm_source || null,
+            utm_medium: utm_medium || null,
+            utm_campaign: utm_campaign || null,
+            created_at: order.created_at,
+          }),
+        })
 
-      webhookStatus = webhookResponse.ok ? 'success' : 'failed'
-      if (!webhookResponse.ok) {
-        webhookError = `HTTP ${webhookResponse.status}`
+        webhookStatus = webhookResponse.ok ? 'success' : 'failed'
+        if (!webhookResponse.ok) {
+          webhookError = `HTTP ${webhookResponse.status}`
+        }
+      } catch (err: any) {
+        webhookStatus = 'failed'
+        webhookError = err.message
       }
-    } catch (error: any) {
-      webhookStatus = 'failed'
-      webhookError = error.message
+    } else {
+      // No webhook configured — mark as skipped rather than failed
+      webhookStatus = 'skipped'
     }
 
-    // Update order with webhook status
+    // Update order with webhook outcome
     await supabase
       .from('orders')
-      .update({
-        webhook_status: webhookStatus,
-        webhook_error: webhookError,
-      })
+      .update({ webhook_status: webhookStatus, webhook_error: webhookError })
       .eq('id', order.id)
 
     return NextResponse.json({ success: true, order_id: order.id })
@@ -101,7 +111,7 @@ export async function POST(request: NextRequest) {
     console.error('Order creation error:', error)
     return NextResponse.json(
       { error: error.message || 'Failed to create order' },
-      { status: 500 }
+      { status: 500 },
     )
   }
 }

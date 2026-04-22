@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { Product } from '@/lib/types';
@@ -25,22 +25,36 @@ export function HomeHitsSection({ locale, maxItems = 4 }: HomeHitsSectionProps) 
       setLoading(true);
 
       try {
-        const { data, error } = await supabase
+        // Primary query: products flagged as hit or new, newest first
+        const { data: flagged, error: flaggedError } = await supabase
           .from('products')
           .select('*, media:product_media(*)')
           .eq('is_active', true)
-          .order('price_retail', { ascending: false })
-          .limit(Math.max(maxItems, 4));
+          .or('is_hit.eq.true,is_new.eq.true')
+          .order('is_hit', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(maxItems);
 
         if (!alive) return;
 
-        if (error) {
-          console.error('Home hits load error:', error);
-          setProducts([]);
+        if (!flaggedError && flagged && flagged.length >= maxItems) {
+          // Enough flagged products — use them directly
+          setProducts(flagged as Product[]);
           return;
         }
 
-        setProducts((data || []) as Product[]);
+        // Fallback: insufficient flagged products, load newest instead
+        // (the newest query naturally includes flagged products too)
+        const { data: newest } = await supabase
+          .from('products')
+          .select('*, media:product_media(*)')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(maxItems);
+
+        if (!alive) return;
+
+        setProducts((newest || []) as Product[]);
       } catch (e) {
         console.error('Home hits exception:', e);
         if (alive) setProducts([]);
@@ -55,13 +69,6 @@ export function HomeHitsSection({ locale, maxItems = 4 }: HomeHitsSectionProps) 
       alive = false;
     };
   }, [maxItems]);
-
-  const hits = useMemo(() => {
-    return [...products]
-      .filter((p) => p.is_active === true)
-      .sort((a, b) => (b.price_retail ?? 0) - (a.price_retail ?? 0))
-      .slice(0, maxItems);
-  }, [products, maxItems]);
 
   return (
     <section className="bg-gray-100 py-16 md:py-24">
@@ -82,7 +89,7 @@ export function HomeHitsSection({ locale, maxItems = 4 }: HomeHitsSectionProps) 
 
         {loading ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
+            {Array.from({ length: maxItems }).map((_, i) => (
               <div key={i}>
                 <div className="mb-4 aspect-square animate-pulse rounded-lg bg-gray-200" />
                 <div className="mb-2 h-5 w-2/3 animate-pulse rounded bg-gray-200" />
@@ -91,9 +98,9 @@ export function HomeHitsSection({ locale, maxItems = 4 }: HomeHitsSectionProps) 
               </div>
             ))}
           </div>
-        ) : hits.length > 0 ? (
+        ) : products.length > 0 ? (
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {hits.map((product) => {
+            {products.slice(0, maxItems).map((product) => {
               const primaryMedia = product.media?.find((m) => m.is_primary && m.media_type === 'photo');
               const firstMedia = product.media?.find((m) => m.media_type === 'photo');
               const displayMedia = primaryMedia || firstMedia;

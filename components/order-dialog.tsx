@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/components/ui/use-toast'
 import { Locale, t } from '@/lib/i18n'
 import { OrderType } from '@/lib/types'
+import { trackOrderSubmit, getStoredAttribution } from '@/lib/analytics'
 
 interface OrderDialogProps {
   open: boolean
@@ -19,6 +20,15 @@ interface OrderDialogProps {
   productCode: string
   selectedColor: string
   price: number
+}
+
+const emptyForm = {
+  customer_name: '',
+  phone: '',
+  telegram: '',
+  city: '',
+  delivery_method: 'nova',
+  comment: '',
 }
 
 export function OrderDialog({
@@ -32,20 +42,16 @@ export function OrderDialog({
 }: OrderDialogProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
-  const [formData, setFormData] = useState({
-    customer_name: '',
-    phone: '',
-    telegram: '',
-    city: '',
-    delivery_method: 'nova',
-    comment: '',
-  })
+  const [formData, setFormData] = useState(emptyForm)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
 
     try {
+      // Read attribution from sessionStorage (set by UtmCapture)
+      const attribution = getStoredAttribution()
+
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -60,10 +66,23 @@ export function OrderDialog({
               price_snapshot: price,
             },
           ],
+          // Source attribution — stored in orders table
+          utm_source: attribution.utm_source || null,
+          utm_medium: attribution.utm_medium || null,
+          utm_campaign: attribution.utm_campaign || null,
+          referrer_url: attribution.referrer_url || null,
         }),
       })
 
       if (!response.ok) throw new Error('Order failed')
+
+      // Fire analytics conversion event
+      trackOrderSubmit({
+        orderType,
+        productCode,
+        price,
+        color: selectedColor,
+      })
 
       toast({
         title: t(locale, 'order.success_title'),
@@ -71,18 +90,14 @@ export function OrderDialog({
       })
 
       onOpenChange(false)
-      setFormData({
-        customer_name: '',
-        phone: '',
-        telegram: '',
-        city: '',
-        delivery_method: 'nova',
-        comment: '',
-      })
-    } catch (error) {
+      setFormData(emptyForm)
+    } catch {
       toast({
-        title: 'Error',
-        description: 'Failed to create order',
+        title: locale === 'ru' ? 'Ошибка' : 'Помилка',
+        description:
+          locale === 'ru'
+            ? 'Не удалось отправить заказ. Попробуйте ещё раз.'
+            : 'Не вдалося відправити замовлення. Спробуйте ще раз.',
         variant: 'destructive',
       })
     } finally {
@@ -103,9 +118,7 @@ export function OrderDialog({
               id="name"
               required
               value={formData.customer_name}
-              onChange={(e) =>
-                setFormData({ ...formData, customer_name: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
             />
           </div>
 
@@ -116,9 +129,7 @@ export function OrderDialog({
               type="tel"
               required
               value={formData.phone}
-              onChange={(e) =>
-                setFormData({ ...formData, phone: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             />
           </div>
 
@@ -127,9 +138,7 @@ export function OrderDialog({
             <Input
               id="telegram"
               value={formData.telegram}
-              onChange={(e) =>
-                setFormData({ ...formData, telegram: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, telegram: e.target.value })}
             />
           </div>
 
@@ -138,9 +147,7 @@ export function OrderDialog({
             <Input
               id="city"
               value={formData.city}
-              onChange={(e) =>
-                setFormData({ ...formData, city: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
             />
           </div>
 
@@ -148,23 +155,15 @@ export function OrderDialog({
             <Label htmlFor="delivery">{t(locale, 'order.delivery')}</Label>
             <Select
               value={formData.delivery_method}
-              onValueChange={(value) =>
-                setFormData({ ...formData, delivery_method: value })
-              }
+              onValueChange={(value) => setFormData({ ...formData, delivery_method: value })}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="nova">
-                  {t(locale, 'order.delivery_nova')}
-                </SelectItem>
-                <SelectItem value="ukr">
-                  {t(locale, 'order.delivery_ukr')}
-                </SelectItem>
-                <SelectItem value="courier">
-                  {t(locale, 'order.delivery_courier')}
-                </SelectItem>
+                <SelectItem value="nova">{t(locale, 'order.delivery_nova')}</SelectItem>
+                <SelectItem value="ukr">{t(locale, 'order.delivery_ukr')}</SelectItem>
+                <SelectItem value="courier">{t(locale, 'order.delivery_courier')}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -174,14 +173,16 @@ export function OrderDialog({
             <Textarea
               id="comment"
               value={formData.comment}
-              onChange={(e) =>
-                setFormData({ ...formData, comment: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, comment: e.target.value })}
             />
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Sending...' : t(locale, 'order.submit')}
+            {loading
+              ? locale === 'ru'
+                ? 'Отправляем...'
+                : 'Відправляємо...'
+              : t(locale, 'order.submit')}
           </Button>
         </form>
       </DialogContent>
