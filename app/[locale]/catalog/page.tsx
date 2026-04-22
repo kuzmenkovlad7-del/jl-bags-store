@@ -57,13 +57,25 @@ export default function CatalogPage() {
 
       // Resolve effective category ID:
       // ?category=<UUID>  takes priority (direct filter)
-      // ?category_slug=<slug>  resolves from loaded categories (homepage links)
+      // ?category_slug=<slug>  requires a targeted lookup (homepage links)
       let effectiveCategoryId = categoryFilter
 
-      if (effectiveCategoryId === 'all' && categorySlugParam && categoriesData) {
-        const matched = categoriesData.find((c: Category) => c.slug === categorySlugParam)
-        if (matched) {
-          effectiveCategoryId = matched.id
+      if (effectiveCategoryId === 'all' && categorySlugParam) {
+        // Dedicated query — does not depend on the full categories list loading
+        const { data: slugCategory, error: slugError } = await supabase
+          .from('categories')
+          .select('id')
+          .eq('slug', categorySlugParam)
+          .eq('is_active', true)
+          .maybeSingle()
+
+        if (!slugError && slugCategory) {
+          effectiveCategoryId = slugCategory.id
+        } else {
+          // Slug not found or DB error — show empty results, not the full catalog
+          setProducts([])
+          setLoading(false)
+          return
         }
       }
 
@@ -77,7 +89,11 @@ export default function CatalogPage() {
           .eq('category_id', effectiveCategoryId)
 
         if (catError) {
-          console.error('Category filter error, showing all products:', catError)
+          // On error, show empty results — never fall through to the full catalog
+          console.error('Category filter error:', catError)
+          setProducts([])
+          setLoading(false)
+          return
         } else if (catProducts && catProducts.length > 0) {
           productIds = catProducts.map((p: { product_id: string }) => p.product_id)
         } else {

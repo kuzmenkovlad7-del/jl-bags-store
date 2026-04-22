@@ -28,12 +28,24 @@ export function ProductClient({ product, locale }: ProductClientProps) {
 
   const colors = product.colors_json || []
 
-  // Strip lines that embed price info (роздріб/дроп/опт + грн/₴) so retail
-  // visitors don't see mixed pricing in the description body.
+  // Remove price info from description so retail visitors don't see drop/wholesale pricing.
+  // Uses substitution (not just line filtering) to handle inline formats like
+  // "Гарна сумка. Ціна 850 грн, дроп 680 грн." — which is all on one line.
   function cleanDescription(text: string): string {
     return text
-      .split('\n')
-      .filter((line) => !/(\d+\s*(грн|₴)|ціна|цена|роздріб|дроп|опт[ова])/i.test(line))
+      // Remove labelled price blocks: "Ціна роздрібна: 850 грн / дроп: 680 грн"
+      .replace(/(роздрібн\w*|розниц\w*|дроп|оптов\w*|ціна|цена)\s*[:\-–—]?\s*\d[\d\s.,]*\s*(грн|гривен\w*|₴|uah)\b\s*[,;\/\|]?\s*/gi, '')
+      // Remove any remaining bare number + currency
+      .replace(/\d[\d\s.,]*\s*(грн|гривен\w*|₴|uah)\b/gi, '')
+      // Remove orphaned price labels left after substitution
+      .replace(/\b(роздрібн\w*|розниц\w*|дроп|оптов\w*|ціна|цена)\s*[:\-–—]\s*/gi, '')
+      // Clean up leftover separators / double spaces
+      .replace(/\s*[,\/|]\s*$|^\s*[,\/|]\s*/gm, '')
+      .replace(/\s{2,}/g, ' ')
+      // Drop lines that are now empty or only punctuation
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 1)
       .join('\n')
       .trim()
   }
