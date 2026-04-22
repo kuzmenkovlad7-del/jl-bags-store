@@ -2,9 +2,10 @@ import { MetadataRoute } from 'next'
 import { supabase } from '@/lib/supabase/client'
 import { getSiteUrl } from '@/lib/site'
 
+// Never cache: env vars and product list must be fresh on every request.
+export const dynamic = 'force-dynamic'
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Call getSiteUrl() at request time so SITE_URL / NEXT_PUBLIC_SITE_URL env
-  // vars are read fresh rather than using the module-level frozen constant.
   const SITE_URL = getSiteUrl()
   const locales = ['uk', 'ru']
 

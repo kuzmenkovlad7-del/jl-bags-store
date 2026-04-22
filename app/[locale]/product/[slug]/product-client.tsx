@@ -28,27 +28,32 @@ export function ProductClient({ product, locale }: ProductClientProps) {
 
   const colors = product.colors_json || []
 
-  // Remove price info from description so retail visitors don't see drop/wholesale pricing.
-  // Uses substitution (not just line filtering) to handle inline formats like
-  // "Гарна сумка. Ціна 850 грн, дроп 680 грн." — which is all on one line.
+  // Remove price info from description so retail visitors never see drop/wholesale pricing.
+  // Previous versions used \b (broken for Cyrillic) and \w* (stops at ASCII boundary, so
+  // "роздрібна" was only matched up to "роздріб"). Fixed using \p{L}* with the u flag.
   function cleanDescription(text: string): string {
-    return text
-      // Remove labelled price blocks: "Ціна роздрібна: 850 грн / дроп: 680 грн"
-      .replace(/(роздрібн\w*|розниц\w*|дроп|оптов\w*|ціна|цена)\s*[:\-–—]?\s*\d[\d\s.,]*\s*(грн|гривен\w*|₴|uah)\b\s*[,;\/\|]?\s*/gi, '')
-      // Remove any remaining bare number + currency
-      .replace(/\d[\d\s.,]*\s*(грн|гривен\w*|₴|uah)\b/gi, '')
-      // Remove orphaned price labels left after substitution
-      .replace(/\b(роздрібн\w*|розниц\w*|дроп|оптов\w*|ціна|цена)\s*[:\-–—]\s*/gi, '')
-      // Clean up leftover separators / double spaces
-      .replace(/\s*[,\/|]\s*$|^\s*[,\/|]\s*/gm, '')
-      .replace(/\s{2,}/g, ' ')
-      // Drop lines that are now empty or only punctuation
+    const cleaned = text
+      // Pass 1 — "NUMBER грн [LABEL]": "690 грн дроп", "790 грн роздріб"
+      .replace(/\d[\d\s.,]*\s*(грн|гривен\p{L}*|₴|uah)\s*(роздріб\p{L}*|розниц\p{L}*|дроп\p{L}*|оптов\p{L}*)?\s*[,;]?\s*/giu, '')
+      // Pass 2 — "[LABEL] [colon?] NUMBER грн": "Ціна роздрібна: 850 грн"
+      .replace(/(роздріб\p{L}*|розниц\p{L}*|дроп\p{L}*|оптов\p{L}*|ціна|цена)\s*[:\-–—]?\s*\d[\d\s.,]*\s*(грн|гривен\p{L}*|₴|uah)?\s*[,;]?\s*/giu, '')
+      // Pass 3 — orphaned keywords left by the passes above ("дроп", "Ціна", "роздрібна:")
+      .replace(/(роздріб\p{L}*|розниц\p{L}*|дроп\p{L}*|оптов\p{L}*|ціна|цена)\s*[:\-–—]?\s*/giu, '')
+      // Collapse ". ." artifacts produced when inline price segments are removed
+      .replace(/\.\s+\./gu, '.')
+      // Strip orphaned separators and collapse double spaces
+      .replace(/\s*[,\/|]\s*$|^\s*[,\/|]\s*/gmu, '')
+      .replace(/\s{2,}/gu, ' ')
+      // Drop lines that contain nothing but punctuation/whitespace after cleaning
       .split(/\r?\n/)
       .map((l) => l.trim())
-      .filter((l) => l.length > 1)
+      .filter((l) => l.replace(/[.!?,;:\s]/gu, '').length > 0)
       .join('\n')
       .trim()
+    return cleaned
   }
+
+  const displayDescription = description ? cleanDescription(description) : ''
 
   function openOrderDialog(type: OrderType, color = '') {
     setOrderType(type)
@@ -89,8 +94,8 @@ export function ProductClient({ product, locale }: ProductClientProps) {
         {stockBadge}
       </div>
 
-      {description && (
-        <p className="text-muted-foreground leading-relaxed">{cleanDescription(description)}</p>
+      {displayDescription && (
+        <p className="text-muted-foreground leading-relaxed">{displayDescription}</p>
       )}
 
       {/* Specs */}
