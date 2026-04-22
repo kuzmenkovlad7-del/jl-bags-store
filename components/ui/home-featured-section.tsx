@@ -29,7 +29,7 @@ export function HomeFeaturedSection({ locale }: Props) {
       .eq('is_active', true)
       .in('slug', FEATURED_PRODUCT_SLUGS)
       .limit(FEATURED_PRODUCT_SLUGS.length)
-      .then(({ data }) => {
+      .then(({ data }: { data: Product[] | null }) => {
         if (!alive) return
         const sorted = (data || []).sort(
           (a: any, b: any) =>
