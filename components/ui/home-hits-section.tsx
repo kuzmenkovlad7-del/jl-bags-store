@@ -38,13 +38,11 @@ export function HomeHitsSection({ locale, maxItems = 4 }: HomeHitsSectionProps) 
         if (!alive) return;
 
         if (!flaggedError && flagged && flagged.length >= maxItems) {
-          // Enough flagged products — use them directly
           setProducts(flagged as Product[]);
           return;
         }
 
-        // Fallback: insufficient flagged products, load newest instead
-        // (the newest query naturally includes flagged products too)
+        // Fallback: insufficient flagged products — load newest instead
         const { data: newest } = await supabase
           .from('products')
           .select('*, media:product_media(*)')
@@ -70,6 +68,17 @@ export function HomeHitsSection({ locale, maxItems = 4 }: HomeHitsSectionProps) 
       alive = false;
     };
   }, [maxItems]);
+
+  const displayProducts = products.slice(0, maxItems);
+  const count = displayProducts.length;
+  const gridClass =
+    count >= 4
+      ? 'grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4'
+      : count === 3
+      ? 'grid grid-cols-1 gap-6 sm:grid-cols-3'
+      : count === 2
+      ? 'grid grid-cols-2 gap-6 max-w-xl mx-auto'
+      : 'grid grid-cols-1 gap-6 max-w-xs mx-auto';
 
   return (
     <section className="bg-gray-100 py-16 md:py-24">
@@ -100,8 +109,8 @@ export function HomeHitsSection({ locale, maxItems = 4 }: HomeHitsSectionProps) 
             ))}
           </div>
         ) : products.length > 0 ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {products.slice(0, maxItems).map((product) => {
+          <div className={gridClass}>
+            {displayProducts.map((product) => {
               const primaryMedia = product.media?.find((m) => m.is_primary && m.media_type === 'photo');
               const firstMedia = product.media?.find((m) => m.media_type === 'photo');
               const displayMedia = primaryMedia || firstMedia;

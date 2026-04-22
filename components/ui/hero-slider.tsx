@@ -15,10 +15,10 @@ const heroByLocale: Record<Locale, any[]> = {
  uk: [
   {
    id: 's1',
-   leftLabel: 'ПРЕМІУМ',
+   leftLabel: 'ВІД ВИРОБНИКА',
    title: 'ЖІНОЧІ СУМКИ',
-   rightLabel: 'ЯКІСТЬ',
-   ctaLabel: 'ПЕРЕГЛЯНУТИ КОЛЕКЦІЮ',
+   rightLabel: 'ВСЯ УКРАЇНА',
+   ctaLabel: 'ПЕРЕЙТИ В КАТАЛОГ',
    ctaHref: '/uk/catalog',
    background: '/slide-1.jpg',
   },
@@ -44,10 +44,10 @@ const heroByLocale: Record<Locale, any[]> = {
  ru: [
   {
    id: 's1',
-   leftLabel: 'ПРЕМИУМ',
+   leftLabel: 'ОТ ПРОИЗВОДИТЕЛЯ',
    title: 'ЖЕНСКИЕ СУМКИ',
-   rightLabel: 'КАЧЕСТВО',
-   ctaLabel: 'СМОТРЕТЬ КОЛЛЕКЦИЮ',
+   rightLabel: 'ВСЯ УКРАИНА',
+   ctaLabel: 'ПЕРЕЙТИ В КАТАЛОГ',
    ctaHref: '/ru/catalog',
    background: '/slide-1.jpg',
   },

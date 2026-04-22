@@ -6,6 +6,7 @@ import { AboutUsSection } from '@/components/ui/about-us-section';
 import { HomeHitsSection } from '@/components/ui/home-hits-section';
 import { HomeNewSection } from '@/components/ui/home-new-section';
 import { HomeFeaturedSection } from '@/components/ui/home-featured-section';
+import { HomePopularSection } from '@/components/ui/home-popular-section';
 import { HomeHowItWorks } from '@/components/ui/home-how-it-works';
 import HeroSlider from '@/components/ui/hero-slider';
 
@@ -15,15 +16,15 @@ import { ArrowRight, Shield, Truck, Award, HeadphonesIcon, Backpack, Wallet, Sho
 import { Button } from '@/components/ui/button';
 import { Locale, t } from '@/lib/i18n';
 
-// Visual categories
+// Visual categories — 3 priority categories listed first for visual prominence
 const visualCategories = [
+  { slug: 'sumka_ekoshkira', name_uk: 'Сумка екошкіра', name_ru: 'Сумка экокожа', icon: ShoppingBag },
   { slug: 'ryukzak_ekoshkira', name_uk: 'Рюкзак екошкіра', name_ru: 'Рюкзак экокожа', icon: Backpack },
+  { slug: 'sumka_stobana', name_uk: 'Сумка стьобана', name_ru: 'Сумка стеганая', icon: ShoppingBag },
+  { slug: 'klatch_krosbodi', name_uk: 'Клатч кросбоді', name_ru: 'Клатч кроссбоди', icon: ShoppingBag },
+  { slug: 'bananka', name_uk: 'Бананка', name_ru: 'Бананка', icon: Package },
   { slug: 'ryukzak_tekstil', name_uk: 'Рюкзак текстиль', name_ru: 'Рюкзак текстиль', icon: Backpack },
   { slug: 'shkilnyi_ryukzak', name_uk: 'Шкільний рюкзак', name_ru: 'Школьный рюкзак', icon: Backpack },
-  { slug: 'klatch_krosbodi', name_uk: 'Клатч кросбоді', name_ru: 'Клатч кроссбоди', icon: ShoppingBag },
-  { slug: 'sumka_ekoshkira', name_uk: 'Сумка екошкіра', name_ru: 'Сумка экокожа', icon: ShoppingBag },
-  { slug: 'sumka_stobana', name_uk: 'Сумка стьобана', name_ru: 'Сумка стеганая', icon: ShoppingBag },
-  { slug: 'bananka', name_uk: 'Бананка', name_ru: 'Бананка', icon: Package },
   { slug: 'sumka_tekstil', name_uk: 'Сумка текстиль', name_ru: 'Сумка текстиль', icon: ShoppingBag },
   { slug: 'rozprodazh', name_uk: 'Розпродаж', name_ru: 'Распродажа', icon: Tag },
   { slug: 'cholovicha_sumka', name_uk: 'Чоловіча сумка', name_ru: 'Мужская сумка', icon: ShoppingBag },
@@ -90,6 +91,8 @@ export default function HomePage({
           </span>
         </div>
       </div>
+
+      <HomePopularSection locale={locale} />
 
       <section className="py-20 md:py-28 bg-gray-50">
         <div className="container">

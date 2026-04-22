@@ -49,6 +49,17 @@ export function HomeNewSection({ locale, maxItems = 4 }: HomeNewSectionProps) {
 
   if (!loading && products.length === 0) return null;
 
+  const displayProducts = products.slice(0, maxItems);
+  const count = displayProducts.length;
+  const gridClass =
+    count >= 4
+      ? 'grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4'
+      : count === 3
+      ? 'grid grid-cols-1 gap-6 sm:grid-cols-3'
+      : count === 2
+      ? 'grid grid-cols-2 gap-6 max-w-xl mx-auto'
+      : 'grid grid-cols-1 gap-6 max-w-xs mx-auto';
+
   return (
     <section className="bg-white py-16 md:py-24">
       <div className="container">
@@ -77,8 +88,8 @@ export function HomeNewSection({ locale, maxItems = 4 }: HomeNewSectionProps) {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {products.slice(0, maxItems).map((product) => {
+          <div className={gridClass}>
+            {displayProducts.map((product) => {
               const primaryMedia = product.media?.find((m) => m.is_primary && m.media_type === 'photo');
               const firstMedia = product.media?.find((m) => m.media_type === 'photo');
               const displayMedia = primaryMedia || firstMedia;
