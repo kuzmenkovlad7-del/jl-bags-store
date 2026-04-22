@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
             utm_source: utm_source || null,
             utm_medium: utm_medium || null,
             utm_campaign: utm_campaign || null,
+            referrer_url: referrer_url || null,
             created_at: order.created_at,
           }),
         })

@@ -28,6 +28,16 @@ export function ProductClient({ product, locale }: ProductClientProps) {
 
   const colors = product.colors_json || []
 
+  // Strip lines that embed price info (роздріб/дроп/опт + грн/₴) so retail
+  // visitors don't see mixed pricing in the description body.
+  function cleanDescription(text: string): string {
+    return text
+      .split('\n')
+      .filter((line) => !/(\d+\s*(грн|₴)|ціна|цена|роздріб|дроп|опт[ова])/i.test(line))
+      .join('\n')
+      .trim()
+  }
+
   function openOrderDialog(type: OrderType, color = '') {
     setOrderType(type)
     setSelectedColor(color || colors[0]?.color || '')
@@ -67,7 +77,9 @@ export function ProductClient({ product, locale }: ProductClientProps) {
         {stockBadge}
       </div>
 
-      {description && <p className="text-muted-foreground leading-relaxed">{description}</p>}
+      {description && (
+        <p className="text-muted-foreground leading-relaxed">{cleanDescription(description)}</p>
+      )}
 
       {/* Specs */}
       <div className="grid grid-cols-2 gap-4 text-sm">

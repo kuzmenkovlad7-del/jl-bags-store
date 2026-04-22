@@ -1,8 +1,11 @@
 import { MetadataRoute } from 'next'
 import { supabase } from '@/lib/supabase/client'
-import { SITE_URL } from '@/lib/site'
+import { getSiteUrl } from '@/lib/site'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Call getSiteUrl() at request time so SITE_URL / NEXT_PUBLIC_SITE_URL env
+  // vars are read fresh rather than using the module-level frozen constant.
+  const SITE_URL = getSiteUrl()
   const locales = ['uk', 'ru']
 
   const { data: products } = await supabase

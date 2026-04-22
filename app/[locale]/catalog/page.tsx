@@ -165,17 +165,22 @@ export default function CatalogPage() {
     return filtered
   }
 
+  // Resolve effective category ID for both Select display and label.
+  // category_slug (from homepage links) is resolved against loaded categories.
+  const resolvedCategoryId = (() => {
+    if (categoryFilter !== 'all') return categoryFilter
+    if (categorySlugParam && categories.length > 0) {
+      const matched = categories.find((c) => c.slug === categorySlugParam)
+      return matched ? matched.id : 'all'
+    }
+    return 'all'
+  })()
+
   // Derive active category label for display
   const activeCategoryLabel = (() => {
-    if (categoryFilter !== 'all') {
-      const cat = categories.find((c) => c.id === categoryFilter)
-      return cat ? (locale === 'ru' && cat.name_ru ? cat.name_ru : cat.name_uk) : null
-    }
-    if (categorySlugParam) {
-      const cat = categories.find((c) => c.slug === categorySlugParam)
-      return cat ? (locale === 'ru' && cat.name_ru ? cat.name_ru : cat.name_uk) : null
-    }
-    return null
+    const cat =
+      resolvedCategoryId !== 'all' ? categories.find((c) => c.id === resolvedCategoryId) : null
+    return cat ? (locale === 'ru' && cat.name_ru ? cat.name_ru : cat.name_uk) : null
   })()
 
   const filteredProducts = filterAndSortProducts()
@@ -202,7 +207,7 @@ export default function CatalogPage() {
 
         <div className="flex flex-col md:flex-row gap-4">
           <Select
-            value={categoryFilter}
+            value={resolvedCategoryId}
             onValueChange={(value) => updateSearchParam('category', value)}
           >
             <SelectTrigger className="w-full md:w-48">

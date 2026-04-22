@@ -74,7 +74,8 @@ export function OrderDialog({
         }),
       })
 
-      if (!response.ok) throw new Error('Order failed')
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Order failed')
 
       // Fire analytics conversion event
       trackOrderSubmit({
@@ -84,9 +85,13 @@ export function OrderDialog({
         color: selectedColor,
       })
 
+      const orderNum = data.order_id ? ` #${data.order_id}` : ''
       toast({
         title: t(locale, 'order.success_title'),
-        description: t(locale, 'order.success_desc'),
+        description:
+          locale === 'ru'
+            ? `Заказ${orderNum} принят. Мы свяжемся с вами в ближайшее время.`
+            : `Замовлення${orderNum} прийнято. Ми зв'яжемося з вами найближчим часом.`,
       })
 
       onOpenChange(false)
