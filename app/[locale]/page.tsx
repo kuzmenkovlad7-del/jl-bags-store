@@ -4,6 +4,7 @@ import { HomeFaqSection } from '@/components/ui/home-faq-section';
 import { TestimonialSlider } from '@/components/ui/testimonial-slider';
 import { AboutUsSection } from '@/components/ui/about-us-section';
 import { HomeHitsSection } from '@/components/ui/home-hits-section';
+import { HomeNewSection } from '@/components/ui/home-new-section';
 import HeroSlider from '@/components/ui/hero-slider';
 
 import { motion } from 'framer-motion';
@@ -103,6 +104,7 @@ export default function HomePage({
         </div>
       </section>
 
+      <HomeNewSection locale={locale} maxItems={4} />
       <HomeHitsSection locale={locale} maxItems={4} />
 
       <section className="py-20 md:py-28 bg-black text-white">

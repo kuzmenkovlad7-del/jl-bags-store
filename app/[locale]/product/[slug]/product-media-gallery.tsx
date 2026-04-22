@@ -99,11 +99,6 @@ export function ProductMediaGallery({ product, name }: ProductMediaGalleryProps)
             className="object-cover"
             priority={currentImage.is_primary}
           />
-          {currentImage.is_primary && (
-            <div className="absolute top-4 left-4 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-medium">
-              Primary
-            </div>
-          )}
         </div>
       )}
 
@@ -126,11 +121,6 @@ export function ProductMediaGallery({ product, name }: ProductMediaGalleryProps)
                 fill
                 className="object-cover"
               />
-              {media.is_primary && (
-                <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">★</span>
-                </div>
-              )}
             </button>
           ))}
         </div>

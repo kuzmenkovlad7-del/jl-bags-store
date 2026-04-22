@@ -204,7 +204,14 @@ export default function CatalogPage() {
 
   return (
     <div className="container py-8">
-      <h1 className="text-4xl font-bold mb-2">{t(locale, 'catalog.title')}</h1>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-2">
+        <h1 className="text-4xl font-bold">{t(locale, 'catalog.title')}</h1>
+        {!loading && (
+          <span className="text-lg text-muted-foreground">
+            {filteredProducts.length} {locale === 'ru' ? 'товаров' : 'товарів'}
+          </span>
+        )}
+      </div>
       {activeCategoryLabel && (
         <p className="text-muted-foreground mb-6">{activeCategoryLabel}</p>
       )}
@@ -333,14 +340,18 @@ export default function CatalogPage() {
                   )}
                 </div>
               </div>
-              <h3 className="font-semibold mb-1 group-hover:text-primary transition-colors">
+              <h3 className="font-semibold mb-1 group-hover:text-primary transition-colors leading-snug">
                 {locale === 'ru' && product.name_ru ? product.name_ru : product.name_uk}
               </h3>
-              <p className="text-sm text-muted-foreground mb-2">
-                {t(locale, 'product.code')}: {product.code}
-              </p>
-              <p className="font-semibold">{formatPrice(product.price_retail)}</p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <div className="flex items-center gap-2 mb-1">
+                <p className="font-semibold">{formatPrice(product.price_retail)}</p>
+                {(product.colors_json?.length ?? 0) > 1 && (
+                  <span className="text-xs text-muted-foreground">
+                    {product.colors_json!.length} {locale === 'ru' ? 'цветов' : 'кольорів'}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
                 {t(locale, `catalog.${product.stock_status}`)}
               </p>
             </Link>
@@ -349,8 +360,16 @@ export default function CatalogPage() {
       )}
 
       {!loading && filteredProducts.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          {t(locale, 'catalog.no_results')}
+        <div className="text-center py-16">
+          <p className="text-muted-foreground text-lg mb-4">{t(locale, 'catalog.no_results')}</p>
+          {(search || stockFilter !== 'all' || flagFilter !== 'all') && (
+            <Link
+              href={`/${locale}/catalog${categorySlugParam ? `?category_slug=${categorySlugParam}` : categoryFilter !== 'all' ? `?category=${categoryFilter}` : ''}`}
+              className="text-sm text-black underline underline-offset-2 hover:opacity-70 transition-opacity"
+            >
+              {locale === 'ru' ? 'Сбросить фильтры' : 'Скинути фільтри'}
+            </Link>
+          )}
         </div>
       )}
     </div>
