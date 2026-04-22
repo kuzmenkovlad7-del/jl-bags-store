@@ -2,6 +2,8 @@ export interface CategoryContent {
   heading?: { uk: string; ru: string }
   subtitle?: { uk: string; ru: string }
   intro?: { uk: string; ru: string }
+  seoTitle?: { uk: string; ru: string }
+  seoDescription?: { uk: string; ru: string }
   seoText?: { uk: string; ru: string }
   faq?: Array<{
     q: { uk: string; ru: string }
@@ -19,6 +21,14 @@ export interface CategoryContent {
 //   subtitle: {
 //     uk: 'Стильні та практичні рюкзаки для міста та подорожей',
 //     ru: 'Стильные и практичные рюкзаки для города и путешествий',
+//   },
+//   seoTitle: {
+//     uk: 'Рюкзаки з екошкіри — купити | Julia Lebedeva',
+//     ru: 'Рюкзаки из экокожи — купить | Julia Lebedeva',
+//   },
+//   seoDescription: {
+//     uk: 'Рюкзаки з екошкіри Julia Lebedeva. Широкий вибір кольорів. Швидка доставка по Україні.',
+//     ru: 'Рюкзаки из экокожи Julia Lebedeva. Широкий выбор цветов. Быстрая доставка по Украине.',
 //   },
 //   intro: {
 //     uk: 'Рюкзаки з екошкіри Julia Lebedeva — ідеальне поєднання стилю та практичності...',

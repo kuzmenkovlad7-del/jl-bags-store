@@ -7,7 +7,7 @@ import { Locale, t } from '@/lib/i18n'
 import { formatPrice } from '@/lib/utils'
 import { OrderDialog } from '@/components/order-dialog'
 import { OrderType } from '@/lib/types'
-import { CheckCircle, RefreshCw, Truck } from 'lucide-react'
+import { CheckCircle, RefreshCw, Truck, CreditCard } from 'lucide-react'
 
 interface ProductClientProps {
   product: Product
@@ -161,14 +161,18 @@ export function ProductClient({ product, locale }: ProductClientProps) {
         </Button>
 
         {/* Trust hint */}
-        <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <Truck className="h-3 w-3" />
+            {locale === 'ru' ? 'Отправка 1–2 дня' : 'Відправка 1–2 дні'}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <CreditCard className="h-3 w-3" />
+            {locale === 'ru' ? 'Оплата при получении' : 'Оплата при отриманні'}
+          </span>
           <span className="inline-flex items-center gap-1">
             <RefreshCw className="h-3 w-3" />
             {locale === 'ru' ? 'Обмен 14 дней' : 'Обмін 14 днів'}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Truck className="h-3 w-3" />
-            {locale === 'ru' ? 'Отправка 1-2 дня' : 'Відправка 1-2 дні'}
           </span>
         </div>
       </div>

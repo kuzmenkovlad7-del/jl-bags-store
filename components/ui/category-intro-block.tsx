@@ -18,6 +18,27 @@ export function CategoryIntroBlock({ categorySlug, locale }: CategoryIntroBlockP
 
   return (
     <div className="mt-16 border-t pt-12 space-y-10">
+      {/* FAQ JSON-LD — injected when FAQ items exist */}
+      {faq && faq.length > 0 && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'FAQPage',
+              mainEntity: faq.map((item) => ({
+                '@type': 'Question',
+                name: item.q[locale],
+                acceptedAnswer: {
+                  '@type': 'Answer',
+                  text: item.a[locale],
+                },
+              })),
+            }),
+          }}
+        />
+      )}
+
       {intro && (
         <p className="text-muted-foreground leading-relaxed max-w-2xl">{intro}</p>
       )}

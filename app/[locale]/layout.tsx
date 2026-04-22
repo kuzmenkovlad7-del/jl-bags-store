@@ -28,15 +28,33 @@ async function getSettings(): Promise<Settings> {
 }
 
 /**
- * Locale-level metadata: hreflang alternates for uk/ru.
- * Per-page overrides (product pages, catalog, etc.) can refine these.
+ * Locale-level metadata: hreflang alternates + locale-specific title/description.
+ * Per-page overrides (product pages, catalog, etc.) merge on top of these.
  */
 export async function generateMetadata({
   params,
 }: {
   params: { locale: string }
 }): Promise<Metadata> {
+  const locale = params.locale as Locale
+  const isRu = locale === 'ru'
+
   return {
+    title: isRu
+      ? 'Julia Lebedeva — Премиальные женские сумки в Украине'
+      : 'Julia Lebedeva — Преміальні жіночі сумки в Україні',
+    description: isRu
+      ? 'Премиальные женские сумки и аксессуары Julia Lebedeva. Актуальные коллекции, быстрая доставка по Украине, опт для партнёров.'
+      : 'Преміальні жіночі сумки та аксесуари Julia Lebedeva. Актуальні колекції, швидка доставка по Україні, опт для партнерів.',
+    openGraph: {
+      title: isRu
+        ? 'Julia Lebedeva — Премиальные женские сумки'
+        : 'Julia Lebedeva — Преміальні жіночі сумки',
+      description: isRu
+        ? 'Актуальные коллекции. Быстрая доставка по Украине. Оплата при получении.'
+        : 'Актуальні колекції. Швидка доставка по Україні. Оплата при отриманні.',
+      locale: isRu ? 'ru_UA' : 'uk_UA',
+    },
     alternates: {
       languages: {
         uk: `${SITE_URL}/uk`,
