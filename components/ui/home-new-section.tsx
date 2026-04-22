@@ -29,6 +29,7 @@ export function HomeNewSection({ locale, maxItems = 4 }: HomeNewSectionProps) {
           .select('*, media:product_media(*)')
           .eq('is_active', true)
           .eq('is_new', true)
+          .order('sort_order', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: false })
           .limit(maxItems);
 

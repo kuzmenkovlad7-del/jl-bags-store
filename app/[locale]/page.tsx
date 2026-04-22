@@ -11,7 +11,7 @@ import HeroSlider from '@/components/ui/hero-slider';
 
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { ArrowRight, Shield, Truck, Award, HeadphonesIcon, Backpack, Wallet, ShoppingBag, Package, Tag } from 'lucide-react';
+import { ArrowRight, Shield, Truck, Award, HeadphonesIcon, Backpack, Wallet, ShoppingBag, Package, Tag, CreditCard, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Locale, t } from '@/lib/i18n';
 
@@ -73,6 +73,23 @@ export default function HomePage({
   return (
     <div className="min-h-screen bg-white">
       <HeroSlider locale={locale} slides={heroSlides} />
+
+      <div className="bg-white border-b border-gray-100 py-3">
+        <div className="container flex flex-wrap items-center justify-center gap-x-8 gap-y-2 text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-2">
+            <Truck className="h-4 w-4" />
+            {locale === 'ru' ? 'Отправка 1–2 дня' : 'Відправка 1–2 дні'}
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <CreditCard className="h-4 w-4" />
+            {locale === 'ru' ? 'Оплата при получении' : 'Оплата при отриманні'}
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <RefreshCw className="h-4 w-4" />
+            {locale === 'ru' ? 'Обмен 14 дней' : 'Обмін 14 днів'}
+          </span>
+        </div>
+      </div>
 
       <section className="py-20 md:py-28 bg-gray-50">
         <div className="container">

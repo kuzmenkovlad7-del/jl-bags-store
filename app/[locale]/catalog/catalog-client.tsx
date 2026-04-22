@@ -12,6 +12,7 @@ import { Locale, t } from '@/lib/i18n'
 import { formatPrice } from '@/lib/utils'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { CategoryIntroBlock } from '@/components/ui/category-intro-block'
+import { CATEGORY_CONTENT } from '@/lib/category-content'
 
 export default function CatalogClient() {
   const params = useParams()
@@ -223,7 +224,12 @@ export default function CatalogClient() {
         )}
       </div>
       {activeCategoryLabel && (
-        <p className="text-muted-foreground mb-6">{activeCategoryLabel}</p>
+        <p className="text-muted-foreground mb-1">{activeCategoryLabel}</p>
+      )}
+      {categorySlugParam && CATEGORY_CONTENT[categorySlugParam]?.subtitle?.[locale] && (
+        <p className="text-sm text-muted-foreground mb-6">
+          {CATEGORY_CONTENT[categorySlugParam].subtitle![locale]}
+        </p>
       )}
 
       {/* Filters */}

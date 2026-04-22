@@ -31,6 +31,7 @@ export function HomeHitsSection({ locale, maxItems = 4 }: HomeHitsSectionProps) 
           .select('*, media:product_media(*)')
           .eq('is_active', true)
           .eq('is_hit', true)
+          .order('sort_order', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: false })
           .limit(maxItems);
 
@@ -48,6 +49,7 @@ export function HomeHitsSection({ locale, maxItems = 4 }: HomeHitsSectionProps) 
           .from('products')
           .select('*, media:product_media(*)')
           .eq('is_active', true)
+          .order('sort_order', { ascending: true, nullsFirst: false })
           .order('created_at', { ascending: false })
           .limit(maxItems);
 
