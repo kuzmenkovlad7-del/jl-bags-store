@@ -11,6 +11,7 @@ import { Product, StockStatus, Category } from '@/lib/types'
 import { Locale, t } from '@/lib/i18n'
 import { formatPrice } from '@/lib/utils'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
+import { CategoryIntroBlock } from '@/components/ui/category-intro-block'
 
 export default function CatalogPage() {
   const params = useParams()
@@ -202,6 +203,15 @@ export default function CatalogPage() {
   const filteredProducts = filterAndSortProducts()
   const stockStatuses: StockStatus[] = ['in_stock', 'low_stock', 'preorder', 'out_of_stock']
 
+  // Resolve the active category slug for the CategoryIntroBlock
+  const resolvedCategorySlug = (() => {
+    if (categorySlugParam) return categorySlugParam
+    if (categoryFilter !== 'all' && categories.length > 0) {
+      return categories.find((c: Category) => c.id === categoryFilter)?.slug || ''
+    }
+    return ''
+  })()
+
   return (
     <div className="container py-8">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-2">
@@ -371,6 +381,10 @@ export default function CatalogPage() {
             </Link>
           )}
         </div>
+      )}
+
+      {resolvedCategorySlug && (
+        <CategoryIntroBlock categorySlug={resolvedCategorySlug} locale={locale} />
       )}
     </div>
   )
