@@ -14,7 +14,7 @@ export interface Product {
   material_uk: string
   material_ru: string | null
   size_text: string
-  colors_json: { color: string; price_drop: number; price_retail: number }[]
+  colors_json: { color: string; price_drop: number; price_retail: number; quantity?: number; reserved_quantity?: number }[]
   price_retail: number
   price_drop: number
   stock_status: StockStatus

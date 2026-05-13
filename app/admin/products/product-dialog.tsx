@@ -13,7 +13,7 @@ import { Product, StockStatus, Category } from '@/lib/types'
 import { useToast } from '@/components/ui/use-toast'
 import { ta } from '@/lib/admin-i18n'
 import MediaUpload from '@/components/admin/media-upload'
-import { ColorsEditor } from '@/components/admin/colors-editor'
+import { ColorsEditor, ColorPrice } from '@/components/admin/colors-editor'
 
 interface ProductDialogProps {
   open: boolean
@@ -45,7 +45,7 @@ export function ProductDialog({
     price_retail: '0',
     price_drop: '0',
     stock_status: 'in_stock' as StockStatus,
-    colors: [] as Array<{ color: string; price_retail: number; price_drop: number }>,
+    colors: [] as ColorPrice[],
     categories: [] as string[],
     is_new: false,
     is_hit: false,
@@ -103,7 +103,13 @@ export function ProductDialog({
           price_retail: product.price_retail.toString(),
           price_drop: product.price_drop.toString(),
           stock_status: product.stock_status,
-          colors: product.colors_json || [],
+          colors: (product.colors_json || []).map(c => ({
+            color:             c.color,
+            price_retail:      c.price_retail,
+            price_drop:        c.price_drop,
+            quantity:          c.quantity ?? 0,
+            reserved_quantity: c.reserved_quantity ?? 0,
+          })),
           categories: categoryIds,
           is_new: product.is_new || false,
           is_hit: product.is_hit || false,
@@ -125,7 +131,7 @@ export function ProductDialog({
         price_retail: '0',
         price_drop: '0',
         stock_status: 'in_stock',
-        colors: [],
+        colors: [] as ColorPrice[],
         categories: [],
         is_new: false,
         is_hit: false,
