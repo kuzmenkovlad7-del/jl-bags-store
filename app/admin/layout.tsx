@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase/client'
-import { Package, Settings, ShoppingCart, LogOut } from 'lucide-react'
+import { Package, Settings, ShoppingCart, LogOut, Upload } from 'lucide-react'
 import { Toaster } from '@/components/ui/toaster'
 import { ta } from '@/lib/admin-i18n'
 
@@ -94,6 +94,17 @@ export default function AdminLayout({
               >
                 <Settings className="h-4 w-4" />
                 {ta('nav.settings')}
+              </Link>
+              <Link
+                href="/admin/import"
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  pathname === '/admin/import'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-gray-100'
+                }`}
+              >
+                <Upload className="h-4 w-4" />
+                Импорт прайса
               </Link>
             </div>
           </div>
