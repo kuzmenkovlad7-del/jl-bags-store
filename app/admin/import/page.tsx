@@ -190,7 +190,9 @@ export default function AdminImportPage() {
 
   // ── Done state ───────────────────────────────────────────────────────────────
   if (state === 'done') {
-    const verifyOk = report && report.foundProductsCount >= report.expectedProductsCount * 0.95
+    const verifyOk = report &&
+      report.foundProductsCount >= report.expectedProductsCount * 0.95 &&
+      report.activeProductsCount >= report.foundProductsCount * 0.95
     const hasErrors = !!fatalError || (report && report.errors.length > 0)
 
     return (
@@ -254,6 +256,9 @@ export default function AdminImportPage() {
                 </p>
                 <p className={verifyOk ? 'text-green-700' : 'text-red-600'}>
                   Найдено в БД: <strong>{report.foundProductsCount}</strong>
+                </p>
+                <p className={verifyOk ? 'text-green-700' : 'text-red-600'}>
+                  Активных (is_active): <strong>{report.activeProductsCount}</strong>
                 </p>
                 {!verifyOk && (
                   <p className="text-red-600 font-medium">
