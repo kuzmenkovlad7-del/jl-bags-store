@@ -100,6 +100,7 @@ export function PriceListClient({ products }: Props) {
   const [search, setSearch]           = useState('')
   const [stockFilter, setStockFilter] = useState('all')
   const [categoryFilter, setCategoryFilter] = useState('all')
+  const [hideZeroQty, setHideZeroQty] = useState(true)
 
   // Derive unique categories from all products
   const allCategories = useMemo<PriceListCategory[]>(() => {
@@ -180,8 +181,12 @@ export function PriceListClient({ products }: Props) {
       result = result.filter(r => r.categories.some(c => c.id === categoryFilter))
     }
 
+    if (hideZeroQty) {
+      result = result.filter(r => r.quantity > 0)
+    }
+
     return result
-  }, [rows, search, stockFilter, categoryFilter])
+  }, [rows, search, stockFilter, categoryFilter, hideZeroQty])
 
   const hasFilters = search || stockFilter !== 'all' || categoryFilter !== 'all'
 
@@ -231,6 +236,16 @@ export function PriceListClient({ products }: Props) {
             <SelectItem value="out_of_stock">Немає</SelectItem>
           </SelectContent>
         </Select>
+
+        <label className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm text-gray-600 bg-white border cursor-pointer hover:bg-gray-50 transition-colors whitespace-nowrap select-none">
+          <input
+            type="checkbox"
+            checked={hideZeroQty}
+            onChange={e => setHideZeroQty(e.target.checked)}
+            className="h-4 w-4 rounded border-gray-300 accent-current"
+          />
+          Тільки з залишком
+        </label>
 
         {hasFilters && (
           <button
