@@ -1,9 +1,16 @@
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 import { Metadata } from 'next'
 import { Lock } from 'lucide-react'
-import { supabase } from '@/lib/supabase/client'
+import { createClient } from '@supabase/supabase-js'
 import { PriceListClient } from './pricelist-client'
+
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  return createClient(url, key, { auth: { persistSession: false } })
+}
 
 export const metadata: Metadata = {
   title: 'Прайс — JL',
@@ -72,6 +79,8 @@ export default async function PriceListPage({ searchParams }: PageProps) {
     )
   }
 
+  const supabase = getSupabase()
+
   // Fetch all active products with their primary media
   const { data: rawProducts, error } = await supabase
     .from('products')
@@ -89,6 +98,14 @@ export default async function PriceListPage({ searchParams }: PageProps) {
   }
 
   const productsRaw: any[] = rawProducts ?? []
+
+  // Debug info — visible in page header until confirmed working
+  const debugInfo = {
+    returned: productsRaw.length,
+    first5codes: productsRaw.slice(0, 5).map((p: any) => p.code as string),
+    error: error?.message ?? null,
+  }
+  console.log('[pricelist] debug:', JSON.stringify(debugInfo))
 
   // Fetch categories for all loaded products in one query
   const categoryMap = new Map<string, PriceListCategory[]>()
@@ -138,6 +155,14 @@ export default async function PriceListPage({ searchParams }: PageProps) {
             <h1 className="text-xl font-bold leading-none">Прайс JL</h1>
             <p className="text-xs text-gray-400 mt-0.5">{products.length} товарів · оновлюється автоматично</p>
           </div>
+        </div>
+        {/* Temporary debug banner — remove after confirming correct counts */}
+        <div className="bg-yellow-50 border-t border-yellow-200 px-4 py-1.5 text-xs text-yellow-800 font-mono">
+          DB returned: {debugInfo.returned} active products
+          {debugInfo.error && <span className="text-red-600 ml-2">error: {debugInfo.error}</span>}
+          {debugInfo.first5codes.length > 0 && (
+            <span className="ml-2">first 5 codes: [{debugInfo.first5codes.join(', ')}]</span>
+          )}
         </div>
       </div>
 
