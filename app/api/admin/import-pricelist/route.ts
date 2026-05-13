@@ -22,6 +22,7 @@ export interface ImportReport {
   missingPrice: number
   expectedProductsCount: number
   foundProductsCount: number
+  activeProductsCount: number
   errors: string[]
 }
 
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
     for (const p of existingProducts) existingMap.set(p.code as string, p)
 
     // 3. Build update and insert payloads
-    const toUpdate: { id: string; colors_json: any[]; stock_status: string }[] = []
+    const toUpdate: { id: string; colors_json: any[]; stock_status: string; is_active: boolean }[] = []
     const toInsert: any[] = []
     let variantsAdded = 0
     let variantsUpdated = 0
@@ -119,6 +120,7 @@ export async function POST(req: NextRequest) {
           id:           existing.id as string,
           colors_json:  merged,
           stock_status: hasStock ? 'in_stock' : 'out_of_stock',
+          is_active:    true,
         })
       } else {
         const dropPrice  = codeVariants.find(v => v.price_drop > 0)?.price_drop ?? 0
@@ -162,7 +164,7 @@ export async function POST(req: NextRequest) {
         chunk.map(u =>
           supabase
             .from('products')
-            .update({ colors_json: u.colors_json, stock_status: u.stock_status })
+            .update({ colors_json: u.colors_json, stock_status: u.stock_status, is_active: u.is_active })
             .eq('id', u.id)
         )
       )
@@ -180,20 +182,33 @@ export async function POST(req: NextRequest) {
       else productsCreated += data?.length ?? 0
     }
 
-    // 6. Post-import verification — query back how many codes are now in DB
+    // 6. Post-import verification — query back how many codes exist and are active
     let foundProductsCount = 0
+    let activeProductsCount = 0
     for (const chunk of chunkArray(allCodes, 200)) {
-      const { count, error } = await supabase
-        .from('products')
-        .select('id', { count: 'exact', head: true })
-        .in('code', chunk)
-      if (!error && count !== null) foundProductsCount += count
+      const [total, active] = await Promise.all([
+        supabase
+          .from('products')
+          .select('id', { count: 'exact', head: true })
+          .in('code', chunk),
+        supabase
+          .from('products')
+          .select('id', { count: 'exact', head: true })
+          .in('code', chunk)
+          .eq('is_active', true),
+      ])
+      if (!total.error && total.count !== null) foundProductsCount += total.count
+      if (!active.error && active.count !== null) activeProductsCount += active.count
     }
 
-    // Surface a top-level error if DB shows far fewer rows than expected
     if (foundProductsCount < allCodes.length * 0.5) {
       errors.push(
         `Верификация: ожидалось ${allCodes.length} кодов в БД, найдено ${foundProductsCount}. Возможна проблема с записью.`
+      )
+    }
+    if (activeProductsCount < foundProductsCount * 0.5) {
+      errors.push(
+        `Верификация: найдено ${foundProductsCount} товаров, но активных (is_active=true) только ${activeProductsCount}. Прайс-лист не обновится.`
       )
     }
 
@@ -207,6 +222,7 @@ export async function POST(req: NextRequest) {
       missingPrice:          variants.filter(v => v.hasMissingPrice).length,
       expectedProductsCount: allCodes.length,
       foundProductsCount,
+      activeProductsCount,
       errors,
     }
 
