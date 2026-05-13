@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { getServiceSupabase, parseCSV, runImportFromVariants } from '@/lib/pricelist-import'
 
 export const runtime = 'nodejs'
@@ -6,13 +7,22 @@ export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   try {
-    // Auth: validate Bearer token against SYNC_SECRET
-    const syncSecret = process.env.SYNC_SECRET
-    if (!syncSecret) {
-      return NextResponse.json({ ok: false, error: 'SYNC_SECRET is not configured on the server' }, { status: 500 })
-    }
+    // Auth: verify the Supabase session token sent by the logged-in admin
     const authHeader = req.headers.get('authorization') ?? ''
-    if (authHeader !== `Bearer ${syncSecret}`) {
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : ''
+    if (!token) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Validate the token against Supabase (service role can verify any JWT)
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!url || !key) {
+      return NextResponse.json({ ok: false, error: 'Supabase is not configured on the server' }, { status: 500 })
+    }
+    const authClient = createClient(url, key, { auth: { persistSession: false } })
+    const { data: { user }, error: authError } = await authClient.auth.getUser(token)
+    if (authError || !user) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -37,7 +47,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: `No valid rows found in CSV (${skipped} rows skipped)` }, { status: 422 })
     }
 
-    // Run import
+    // Run import with service role client
     const supabase = getServiceSupabase()
     const report   = await runImportFromVariants(variants, supabase)
 
@@ -49,3 +59,4 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+

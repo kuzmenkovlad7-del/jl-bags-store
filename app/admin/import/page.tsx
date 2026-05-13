@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Upload, FileText, CheckCircle, Loader2, AlertTriangle, XCircle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
+import { supabase } from '@/lib/supabase/client'
 import type { ImportReport } from '@/lib/pricelist-import'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -20,8 +21,6 @@ interface ParsedVariant {
 type ImportState = 'idle' | 'preview' | 'importing' | 'done'
 type SyncState   = 'idle' | 'syncing' | 'done' | 'error'
 
-const SYNC_SECRET  = process.env.NEXT_PUBLIC_SYNC_SECRET ?? ''
-const SHEET_URL_OK = Boolean(process.env.NEXT_PUBLIC_SHEET_CONFIGURED === 'true')
 
 // ── CSV helpers ───────────────────────────────────────────────────────────────
 
@@ -208,11 +207,18 @@ export default function AdminImportPage() {
     setSyncReport(null)
 
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        setSyncError('Сессия истекла — войдите в аккаунт повторно.')
+        setSyncState('error')
+        return
+      }
+
       const res = await fetch('/api/admin/sync-pricelist', {
         method:  'POST',
         headers: {
           'Content-Type':  'application/json',
-          'Authorization': `Bearer ${SYNC_SECRET}`,
+          'Authorization': `Bearer ${session.access_token}`,
         },
       })
 
@@ -478,7 +484,7 @@ export default function AdminImportPage() {
   }
 
   // ── Idle state ────────────────────────────────────────────────────────────────
-  const syncConfigured = Boolean(SYNC_SECRET)
+  const syncConfigured = true // auth uses Supabase session, no public secret needed
 
   return (
     <div>
@@ -506,18 +512,6 @@ export default function AdminImportPage() {
             </Button>
           </div>
 
-          {/* Config status */}
-          {!syncConfigured && (
-            <div className="flex items-start gap-2 text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-              <span>
-                Для синхронизации необходимо настроить переменные окружения в Vercel:{' '}
-                <code className="bg-yellow-100 px-1 rounded text-xs">SYNC_SECRET</code>,{' '}
-                <code className="bg-yellow-100 px-1 rounded text-xs">NEXT_PUBLIC_SYNC_SECRET</code>,{' '}
-                <code className="bg-yellow-100 px-1 rounded text-xs">GOOGLE_SHEET_CSV_URL</code>.
-              </span>
-            </div>
-          )}
 
           {/* Sync progress */}
           {syncState === 'syncing' && (
