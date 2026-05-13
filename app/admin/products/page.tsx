@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Plus, Eye, EyeOff, Copy, Pencil, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Plus, Eye, EyeOff, Copy, Pencil, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase/client'
 import { Product } from '@/lib/types'
 import { useToast } from '@/components/ui/use-toast'
@@ -16,6 +17,17 @@ export default function AdminProductsPage() {
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery.trim()) return products
+    const q = searchQuery.trim().toLowerCase()
+    return products.filter(p =>
+      p.code.toLowerCase().includes(q) ||
+      p.name_uk.toLowerCase().includes(q) ||
+      (p.name_ru?.toLowerCase().includes(q) ?? false)
+    )
+  }, [products, searchQuery])
 
   useEffect(() => {
     loadProducts()
@@ -126,17 +138,33 @@ export default function AdminProductsPage() {
 
   return (
     <div>
-      <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold sm:text-3xl">{ta('products.title')}</h1>
-        <Button onClick={openCreateDialog} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          {ta('products.addProduct')}
-        </Button>
+      <div className="mb-4 flex flex-col gap-3 sm:mb-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-2xl font-bold sm:text-3xl">{ta('products.title')}</h1>
+          <Button onClick={openCreateDialog} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            {ta('products.addProduct')}
+          </Button>
+        </div>
+        <div className="relative sm:max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input
+            placeholder="Поиск по коду или названию..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        {searchQuery && (
+          <p className="text-sm text-muted-foreground">
+            Найдено: {filteredProducts.length} из {products.length}
+          </p>
+        )}
       </div>
 
       {/* Mobile cards */}
       <div className="space-y-3 md:hidden">
-        {products.map((product) => (
+        {filteredProducts.map((product) => (
           <div key={product.id} className="rounded-lg border bg-white p-3 shadow-sm">
             <div className="mb-2 flex items-start justify-between gap-3">
               <div>
@@ -188,7 +216,7 @@ export default function AdminProductsPage() {
               </tr>
             </thead>
             <tbody className="divide-y">
-              {products.map((product) => (
+              {filteredProducts.map((product) => (
                 <tr key={product.id}>
                   <td className="px-4 py-3 text-sm font-medium">{product.code}</td>
                   <td className="px-4 py-3 text-sm">{product.name_uk}</td>

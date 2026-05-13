@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/admin/', '/api/'],
+        disallow: ['/admin/', '/api/', '/pricelist'],
       },
     ],
     sitemap: 'https://jl-bags.vercel.app/sitemap.xml',
