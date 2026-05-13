@@ -81,47 +81,51 @@ export default async function PriceListPage({ searchParams }: PageProps) {
 
   const supabase = getSupabase()
 
-  // Fetch all active products with their primary media
-  const { data: rawProducts, error } = await supabase
-    .from('products')
-    .select(`
-      id, code, name_uk, name_ru,
-      price_retail, price_drop,
-      colors_json, stock_status, sort_order, material_uk,
-      media:product_media(url, is_primary, media_type, position)
-    `)
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true })
+  // Paginate to bypass Supabase's 1000-row default limit
+  const PAGE_SIZE = 1000
+  const productsRaw: any[] = []
+  let from = 0
+  while (true) {
+    const { data, error } = await supabase
+      .from('products')
+      .select(`
+        id, code, name_uk, name_ru,
+        price_retail, price_drop,
+        colors_json, stock_status, sort_order, material_uk,
+        media:product_media(url, is_primary, media_type, position)
+      `)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true })
+      .range(from, from + PAGE_SIZE - 1)
 
-  if (error) {
-    console.error('[pricelist] fetch products error:', error.message)
+    if (error) {
+      console.error('[pricelist] fetch products error:', error.message)
+      break
+    }
+    if (data) productsRaw.push(...data)
+    if (!data || data.length < PAGE_SIZE) break
+    from += PAGE_SIZE
   }
 
-  const productsRaw: any[] = rawProducts ?? []
-
-  // Debug info — visible in page header until confirmed working
-  const debugInfo = {
-    returned: productsRaw.length,
-    first5codes: productsRaw.slice(0, 5).map((p: any) => p.code as string),
-    error: error?.message ?? null,
-  }
-  console.log('[pricelist] debug:', JSON.stringify(debugInfo))
-
-  // Fetch categories for all loaded products in one query
+  // Fetch categories for all loaded products, chunked to avoid query size limits
   const categoryMap = new Map<string, PriceListCategory[]>()
 
   if (productsRaw.length > 0) {
     const productIds: string[] = productsRaw.map((p: any) => p.id as string)
-    const { data: rawPCs } = await supabase
-      .from('product_categories')
-      .select('product_id, categories(id, slug, name_uk, name_ru)')
-      .in('product_id', productIds)
+    // Chunk into 500-id batches
+    for (let i = 0; i < productIds.length; i += 500) {
+      const chunk = productIds.slice(i, i + 500)
+      const { data: rawPCs } = await supabase
+        .from('product_categories')
+        .select('product_id, categories(id, slug, name_uk, name_ru)')
+        .in('product_id', chunk)
 
-    for (const pc of (rawPCs ?? []) as any[]) {
-      if (!pc.categories) continue
-      const existing = categoryMap.get(pc.product_id as string) ?? []
-      existing.push(pc.categories as PriceListCategory)
-      categoryMap.set(pc.product_id as string, existing)
+      for (const pc of (rawPCs ?? []) as any[]) {
+        if (!pc.categories) continue
+        const existing = categoryMap.get(pc.product_id as string) ?? []
+        existing.push(pc.categories as PriceListCategory)
+        categoryMap.set(pc.product_id as string, existing)
+      }
     }
   }
 
@@ -155,14 +159,6 @@ export default async function PriceListPage({ searchParams }: PageProps) {
             <h1 className="text-xl font-bold leading-none">Прайс JL</h1>
             <p className="text-xs text-gray-400 mt-0.5">{products.length} товарів · оновлюється автоматично</p>
           </div>
-        </div>
-        {/* Temporary debug banner — remove after confirming correct counts */}
-        <div className="bg-yellow-50 border-t border-yellow-200 px-4 py-1.5 text-xs text-yellow-800 font-mono">
-          DB returned: {debugInfo.returned} active products
-          {debugInfo.error && <span className="text-red-600 ml-2">error: {debugInfo.error}</span>}
-          {debugInfo.first5codes.length > 0 && (
-            <span className="ml-2">first 5 codes: [{debugInfo.first5codes.join(', ')}]</span>
-          )}
         </div>
       </div>
 
