@@ -14,6 +14,8 @@ export interface PriceListColor {
   color: string
   price_retail: number
   price_drop: number
+  quantity?: number
+  reserved_quantity?: number
 }
 
 export interface PriceListCategory {
