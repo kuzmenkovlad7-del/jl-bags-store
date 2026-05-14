@@ -4,7 +4,9 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 export interface ParsedVariant {
   code: string
-  color: string
+  color: string           // clean display text, e.g. "З капучино б/л"
+  source_text: string     // raw column B text after code removal
+  normalized_key: string  // stable matching key: code|material|colorKey|logo|hardware
   price_drop: number
   quantity: number
   hasMissingPrice: boolean
@@ -32,6 +34,146 @@ export function getServiceSupabase(): SupabaseClient {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not configured on the server')
   return createClient(url, key, { auth: { persistSession: false } })
+}
+
+// ── Variant component extraction ──────────────────────────────────────────────
+
+type MaterialKey = '' | 'z' | 'e' | 'zr' | 'r'
+type LogoKey     = '' | 'jl' | 'no-logo'
+type HwKey       = '' | 'gold' | 'silver'
+
+interface VariantParts {
+  materialKey:     MaterialKey
+  materialDisplay: string
+  colorKey:        string
+  colorDisplay:    string
+  logoKey:         LogoKey
+  logoDisplay:     string
+  hardwareKey:     HwKey
+  hardwareDisplay: string
+}
+
+// Known color stems → canonical key
+const COLOR_MAP: [RegExp, string][] = [
+  [/чорн|черн/i,                    'black'],
+  [/шоколад/i,                      'choco'],
+  [/капучино/i,                     'cappuccino'],
+  [/беж/i,                          'beige'],
+  [/бордо/i,                        'bordo'],
+  [/пудр/i,                         'pudra'],
+  [/сір[иій]|сер[иый]/i,            'grey'],
+  [/зелен/i,                        'green'],
+  [/молоч/i,                        'milk'],
+  [/тілесн|телесн/i,                'skin'],
+  [/біл[иій]|бел[ыый]/i,            'white'],
+  [/рожев/i,                        'rose'],
+  [/син[іий]/i,                     'blue'],
+  [/конь?як/i,                      'cognac'],
+  [/кавов|кофейн/i,                 'coffee'],
+  [/олив/i,                         'olive'],
+  [/гірчиц|горчиц/i,                'mustard'],
+  [/червон|красн/i,                 'red'],
+  [/лілов|фіолет/i,                 'purple'],
+  [/вишн/i,                         'cherry'],
+  [/лаванд/i,                       'lavender'],
+  [/бузков/i,                       'lilac'],
+  [/гірчич|горчич/i,                'mustard'],
+  [/крем/i,                         'cream'],
+  [/пісочн|песочн/i,                'sand'],
+]
+
+function normalizeColorKey(color: string): string {
+  const s = color.toLowerCase().trim()
+  if (!s) return ''
+  for (const [re, key] of COLOR_MAP) {
+    if (re.test(s)) return key
+  }
+  // Fallback: strip non-word chars, keep first 24 chars
+  return s.replace(/[^\wа-яіїєёa-z0-9]/gi, '_').replace(/_+/g, '_').slice(0, 24)
+}
+
+// Patterns ordered so compound matches (ЗР) come before simple ones (З, Р)
+const MAT_START: [RegExp, MaterialKey, string][] = [
+  [/^(зр|замша\s*[-–]?\s*рептил\S*)\s*/i, 'zr', 'ЗР'],
+  [/^(замша|з)\s*/i,                       'z',  'З'],
+  [/^(екошкір\S*|еко|эко|е)\s*/i,          'e',  'Е'],
+  [/^(рептил\S*|р)\s*/i,                   'r',  'Р'],
+]
+
+const MAT_ANYWHERE: [RegExp, MaterialKey, string][] = [
+  [/замша\s*[-–]?\s*рептил\S*/i, 'zr', 'ЗР'],
+  [/замша/i,                      'z',  'З'],
+  [/(екошкір\S*|еко|эко)/i,      'e',  'Е'],
+  [/рептил\S*/i,                  'r',  'Р'],
+]
+
+function extractVariantParts(sourceText: string): VariantParts {
+  let rest = sourceText.trim()
+
+  // 1. Material — check start of string first, then anywhere
+  let materialKey: MaterialKey = ''
+  let materialDisplay = ''
+
+  for (const [re, key, display] of MAT_START) {
+    const m = rest.match(re)
+    if (m) { materialKey = key; materialDisplay = display; rest = rest.slice(m[0].length); break }
+  }
+
+  if (!materialKey) {
+    for (const [re, key, display] of MAT_ANYWHERE) {
+      if (re.test(rest)) {
+        materialKey = key; materialDisplay = display
+        rest = rest.replace(re, ' ')
+        break
+      }
+    }
+  }
+
+  // 2. Hardware — before logo so "зол.ф JL" parses correctly
+  let hardwareKey: HwKey = ''
+  let hardwareDisplay = ''
+
+  if (/зол[.\s]?\S*|золот\S+/i.test(rest)) {
+    hardwareKey = 'gold'; hardwareDisplay = 'зол.ф'
+    rest = rest.replace(/\s*(зол[.\s]?\S*|золот\S+)/gi, ' ')
+  } else if (/сріб\S*|сереб\S*/i.test(rest)) {
+    hardwareKey = 'silver'; hardwareDisplay = 'сріб'
+    rest = rest.replace(/\s*(сріб\S*|сереб\S*)/gi, ' ')
+  }
+
+  // 3. Logo
+  let logoKey: LogoKey = ''
+  let logoDisplay = ''
+
+  if (/\bJL\b/i.test(rest)) {
+    logoKey = 'jl'; logoDisplay = 'JL'
+    rest = rest.replace(/\s*\bJL\b\s*/gi, ' ')
+  } else if (/б\/л|без\s*лог\S*/i.test(rest)) {
+    logoKey = 'no-logo'; logoDisplay = 'б/л'
+    rest = rest.replace(/\s*(б\/л|без\s*лог\S*)\s*/gi, ' ')
+  }
+
+  // 4. Colour = what remains
+  const colorDisplay = rest.replace(/\s+/g, ' ').trim()
+  const colorKey     = normalizeColorKey(colorDisplay)
+
+  return { materialKey, materialDisplay, colorKey, colorDisplay, logoKey, logoDisplay, hardwareKey, hardwareDisplay }
+}
+
+function buildDisplayColor(parts: VariantParts): string {
+  const tokens = [
+    parts.materialDisplay,
+    parts.colorDisplay,
+    parts.logoDisplay,
+    parts.hardwareDisplay,
+  ].filter(Boolean)
+  const joined = tokens.join(' ').replace(/\s+/g, ' ').trim()
+  return joined || '—'
+}
+
+export function buildNormalizedKey(code: string, sourceText: string): string {
+  const p = extractVariantParts(sourceText)
+  return `${code}|${p.materialKey}|${p.colorKey}|${p.logoKey}|${p.hardwareKey}`
 }
 
 // ── CSV helpers ───────────────────────────────────────────────────────────────
@@ -65,14 +207,6 @@ function parseCSVLine(line: string, sep: ',' | ';'): string[] {
 function extractCode(raw: string): string | null {
   const m = raw.trim().match(/^(\d{3,5})/)
   return m ? m[1] : null
-}
-
-function extractColor(raw: string, code: string): string {
-  let s = raw.trim().slice(code.length).trim()
-  s = s.replace(/^[-–—\s]+/, '').trim()
-  s = s.replace(/\s*\bJL\b\s*/gi, ' ').trim()
-  s = s.replace(/\s+/g, ' ').trim()
-  return s || '—'
 }
 
 function parsePrice(raw: string): number {
@@ -110,11 +244,17 @@ export function parseCSV(text: string): { variants: ParsedVariant[]; skipped: nu
     const code = extractCode(rawName)
     if (!code) { skipped++; continue }
 
-    const color      = extractColor(rawName, code)
+    // Raw text after code prefix, before any normalization
+    const source_text = rawName.trim().slice(code.length).replace(/^[-–—\s]+/, '').trim()
+
+    const parts         = extractVariantParts(source_text)
+    const color         = buildDisplayColor(parts)
+    const normalized_key = buildNormalizedKey(code, source_text)
+
     const quantity   = parseQty(fields[2] ?? '')    // column C
     const price_drop = parsePrice(fields[3] ?? '')  // column D
 
-    variants.push({ code, color, price_drop, quantity, hasMissingPrice: price_drop === 0 })
+    variants.push({ code, color, source_text, normalized_key, price_drop, quantity, hasMissingPrice: price_drop === 0 })
   }
 
   return { variants, skipped }
@@ -128,18 +268,20 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
   return result
 }
 
-function normalizeColor(s: string): string {
-  return s.toLowerCase().trim()
-}
-
 export async function runImportFromVariants(
-  variants: ParsedVariant[],
+  rawVariants: ParsedVariant[],
   supabase: SupabaseClient,
 ): Promise<ImportReport> {
   const errors: string[] = []
 
-  // 1. Group by code
-  const grouped = new Map<string, ParsedVariant[]>()
+  // Ensure every variant has a normalized_key (manual-import path may omit it)
+  const variants = rawVariants.map(v => ({
+    ...v,
+    normalized_key: v.normalized_key || buildNormalizedKey(v.code, v.source_text ?? v.color),
+  }))
+
+  // 1. Group by product code
+  const grouped = new Map<string, typeof variants>()
   for (const v of variants) {
     const list = grouped.get(v.code) ?? []
     list.push(v)
@@ -174,24 +316,33 @@ export async function runImportFromVariants(
       const merged: any[] = Array.isArray(existing.colors_json) ? [...existing.colors_json] : []
 
       for (const v of codeVariants) {
-        const idx = merged.findIndex(
-          c => normalizeColor(c.color ?? '') === normalizeColor(v.color)
+        // Match by normalized_source_key first, fall back to normalized color text for legacy rows
+        const idx = merged.findIndex(c =>
+          c.normalized_source_key && v.normalized_key
+            ? c.normalized_source_key === v.normalized_key
+            : (c.color ?? '').toLowerCase().trim() === (v.color ?? '').toLowerCase().trim()
         )
+
         if (idx >= 0) {
           merged[idx] = {
             ...merged[idx],
-            quantity:          v.quantity,
-            price_drop:        v.price_drop > 0 ? v.price_drop : (merged[idx].price_drop ?? 0),
-            reserved_quantity: merged[idx].reserved_quantity ?? 0,
+            color:                 v.color,
+            source_text:           v.source_text,
+            normalized_source_key: v.normalized_key,
+            quantity:              v.quantity,
+            price_drop:            v.price_drop > 0 ? v.price_drop : (merged[idx].price_drop ?? 0),
+            reserved_quantity:     merged[idx].reserved_quantity ?? 0,
           }
           variantsUpdated++
         } else {
           merged.push({
-            color:             v.color,
-            price_retail:      existing.price_retail ?? 0,
-            price_drop:        v.price_drop,
-            quantity:          v.quantity,
-            reserved_quantity: 0,
+            color:                 v.color,
+            source_text:           v.source_text,
+            normalized_source_key: v.normalized_key,
+            price_retail:          existing.price_retail ?? 0,
+            price_drop:            v.price_drop,
+            quantity:              v.quantity,
+            reserved_quantity:     0,
           })
           variantsAdded++
         }
@@ -203,8 +354,13 @@ export async function runImportFromVariants(
       const dropPrice  = codeVariants.find(v => v.price_drop > 0)?.price_drop ?? 0
       const hasStock   = codeVariants.some(v => v.quantity > 0)
       const colorsJson = codeVariants.map(v => ({
-        color: v.color, price_retail: 0, price_drop: v.price_drop,
-        quantity: v.quantity, reserved_quantity: 0,
+        color:                 v.color,
+        source_text:           v.source_text,
+        normalized_source_key: v.normalized_key,
+        price_retail:          0,
+        price_drop:            v.price_drop,
+        quantity:              v.quantity,
+        reserved_quantity:     0,
       }))
       variantsAdded += codeVariants.length
 
