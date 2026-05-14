@@ -12,6 +12,7 @@ import type { ImportReport } from '@/lib/pricelist-import'
 interface ParsedVariant {
   code: string
   color: string
+  source_text: string
   price_drop: number
   quantity: number
   rawLine: string
@@ -55,12 +56,13 @@ function extractCode(raw: string): string | null {
   return m ? m[1] : null
 }
 
-function extractColor(raw: string, code: string): string {
-  let s = raw.trim().slice(code.length).trim()
-  s = s.replace(/^[-–—\s]+/, '').trim()
-  s = s.replace(/\s*\bJL\b\s*/gi, ' ').trim()
-  s = s.replace(/\s+/g, ' ').trim()
-  return s || '—'
+function extractSourceText(raw: string, code: string): string {
+  return raw.trim().slice(code.length).replace(/^[-–—\s]+/, '').trim()
+}
+
+function extractColor(sourceText: string): string {
+  // Simple client-side display: normalize whitespace only, keep all tokens for preview
+  return sourceText.replace(/\s+/g, ' ').trim() || '—'
 }
 
 function parsePrice(raw: string): number {
@@ -97,10 +99,11 @@ function parseCSV(text: string): { variants: ParsedVariant[]; skipped: number } 
     const code = extractCode(rawName)
     if (!code) { skipped++; continue }
 
-    const color      = extractColor(rawName, code)
-    const quantity   = parseQty(fields[2] ?? '')
-    const price_drop = parsePrice(fields[3] ?? '')
-    variants.push({ code, color, price_drop, quantity, rawLine: line, hasMissingPrice: price_drop === 0 })
+    const source_text = extractSourceText(rawName, code)
+    const color       = extractColor(source_text)
+    const quantity    = parseQty(fields[2] ?? '')
+    const price_drop  = parsePrice(fields[3] ?? '')
+    variants.push({ code, color, source_text, price_drop, quantity, rawLine: line, hasMissingPrice: price_drop === 0 })
   }
 
   return { variants, skipped }
