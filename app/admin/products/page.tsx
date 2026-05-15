@@ -1,199 +1,259 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { Plus, Eye, EyeOff, Copy, Pencil, Search, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  ChevronLeft, ChevronRight, Copy, Eye, EyeOff, Pencil, Plus, Search, Trash2,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { supabase } from '@/lib/supabase/client'
 import { Product } from '@/lib/types'
 import { useToast } from '@/components/ui/use-toast'
 import { formatPrice } from '@/lib/utils'
 import { ProductDialog } from './product-dialog'
-import { ta } from '@/lib/admin-i18n'
+
+type FilterKey = 'all' | 'in_stock' | 'out_of_stock' | 'active' | 'inactive' | 'with_photos' | 'without_photos' | 'missing_desc' | 'missing_retail'
+type SortKey   = 'code_asc' | 'code_desc' | 'updated_desc' | 'sort_order'
+
+interface Stats { total: number; active: number; inStock: number; outOfStock: number }
+
+const PAGE_SIZE = 50
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: 'all',            label: 'Усі' },
+  { key: 'in_stock',       label: 'На складі' },
+  { key: 'out_of_stock',   label: 'Немає' },
+  { key: 'with_photos',    label: 'З фото' },
+  { key: 'without_photos', label: 'Без фото' },
+  { key: 'missing_desc',   label: 'Без опису' },
+  { key: 'missing_retail', label: 'Без роздр. ціни' },
+]
+
+const SORTS: { key: SortKey; label: string }[] = [
+  { key: 'code_asc',    label: 'Код А→Я' },
+  { key: 'code_desc',   label: 'Код Я→А' },
+  { key: 'updated_desc', label: 'Нещодавно змінені' },
+  { key: 'sort_order',   label: 'За sort_order' },
+]
 
 export default function AdminProductsPage() {
   const { toast } = useToast()
-  const [products, setProducts] = useState<Product[]>([])
-  const [loading, setLoading] = useState(true)
-  const [dialogOpen, setDialogOpen] = useState(false)
+  const [products, setProducts]         = useState<Product[]>([])
+  const [total, setTotal]               = useState(0)
+  const [stats, setStats]               = useState<Stats | null>(null)
+  const [loading, setLoading]           = useState(true)
+  const [dialogOpen, setDialogOpen]     = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
+  const [search, setSearch]             = useState('')
+  const [filter, setFilter]             = useState<FilterKey>('all')
+  const [sort, setSort]                 = useState<SortKey>('code_asc')
+  const [page, setPage]                 = useState(1)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const filteredProducts = useMemo(() => {
-    if (!searchQuery.trim()) return products
-    const q = searchQuery.trim().toLowerCase()
-    return products.filter(p =>
-      p.code.toLowerCase().includes(q) ||
-      p.name_uk.toLowerCase().includes(q) ||
-      (p.name_ru?.toLowerCase().includes(q) ?? false)
-    )
-  }, [products, searchQuery])
+  const loadProducts = useCallback(async (opts: {
+    search: string; filter: FilterKey; sort: SortKey; page: number
+  }) => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({
+        search:   opts.search,
+        filter:   opts.filter,
+        sort:     opts.sort,
+        page:     String(opts.page),
+        pageSize: String(PAGE_SIZE),
+      })
+      const res  = await fetch(`/api/admin/products?${params}`)
+      const json = await res.json()
+      if (json.error) {
+        toast({ title: 'Помилка', description: json.error, variant: 'destructive' })
+      } else {
+        setProducts(json.products ?? [])
+        setTotal(json.total ?? 0)
+        if (json.stats) setStats(json.stats)
+      }
+    } catch (e: any) {
+      toast({ title: 'Помилка', description: e.message, variant: 'destructive' })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
 
   useEffect(() => {
-    loadProducts()
-  }, [])
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    const delay = search ? 400 : 0
+    debounceRef.current = setTimeout(() => loadProducts({ search, filter, sort, page }), delay)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [search, filter, sort, page, loadProducts])
 
-  async function loadProducts() {
-    const { data } = await supabase
-      .from('products')
-      .select('*, media:product_media(*)')
-      .order('sort_order', { ascending: true })
-
-    if (data) setProducts(data)
-    setLoading(false)
-  }
+  function changeFilter(f: FilterKey) { setFilter(f); setPage(1) }
+  function changeSort(s: SortKey)     { setSort(s);   setPage(1) }
+  function changeSearch(v: string)    { setSearch(v); setPage(1) }
 
   async function toggleActive(product: Product) {
     const { error } = await supabase
       .from('products')
       .update({ is_active: !product.is_active })
       .eq('id', product.id)
-
     if (error) {
-      toast({
-        title: ta('common.error'),
-        description: ta('products.errorUpdate'),
-        variant: 'destructive',
-      })
+      toast({ title: 'Помилка', description: error.message, variant: 'destructive' })
       return
     }
-
-    toast({ title: ta('products.productUpdated') })
-    loadProducts()
+    loadProducts({ search, filter, sort, page })
   }
 
   async function duplicateProduct(product: Product) {
-    const newCode = `${product.code}-copy`
-    const newSlug = `${product.slug}-copy`
-
-    const { error } = await supabase
-      .from('products')
-      .insert({
-        code: newCode,
-        name_uk: `${product.name_uk} (копія)`,
-        name_ru: product.name_ru ? `${product.name_ru} (копия)` : null,
-        slug: newSlug,
-        description_uk: product.description_uk,
-        description_ru: product.description_ru,
-        material_uk: product.material_uk,
-        material_ru: product.material_ru,
-        size_text: product.size_text,
-        colors_json: product.colors_json,
-        price_retail: product.price_retail,
-        price_drop: product.price_drop,
-        stock_status: product.stock_status,
-        is_active: false,
-      })
-
+    const { error } = await supabase.from('products').insert({
+      code:           `${product.code}-copy`,
+      slug:           `${product.slug}-copy`,
+      name_uk:        `${product.name_uk} (копія)`,
+      name_ru:        product.name_ru ? `${product.name_ru} (копия)` : null,
+      description_uk: product.description_uk,
+      description_ru: product.description_ru,
+      material_uk:    product.material_uk,
+      material_ru:    product.material_ru,
+      size_text:      product.size_text,
+      colors_json:    product.colors_json,
+      price_retail:   product.price_retail,
+      price_drop:     product.price_drop,
+      stock_status:   product.stock_status,
+      is_active:      false,
+    })
     if (error) {
-      toast({
-        title: ta('common.error'),
-        description: ta('products.errorUpdate'),
-        variant: 'destructive',
-      })
+      toast({ title: 'Помилка', description: error.message, variant: 'destructive' })
       return
     }
-
-    toast({ title: ta('products.productDuplicated') })
-    loadProducts()
+    toast({ title: 'Товар скопійовано' })
+    loadProducts({ search, filter, sort, page })
   }
 
   async function deleteProduct(id: string) {
-    if (!confirm(ta('products.confirmDelete'))) return
-
+    if (!confirm('Видалити товар? Цю дію не можна скасувати.')) return
     const { error } = await supabase.from('products').delete().eq('id', id)
-
     if (error) {
-      toast({
-        title: ta('common.error'),
-        description: ta('products.errorDelete'),
-        variant: 'destructive',
-      })
+      toast({ title: 'Помилка', description: error.message, variant: 'destructive' })
       return
     }
-
-    toast({ title: ta('products.productDeleted') })
-    loadProducts()
+    toast({ title: 'Товар видалено' })
+    loadProducts({ search, filter, sort, page })
   }
 
-  function openCreateDialog() {
-    setEditingProduct(null)
-    setDialogOpen(true)
-  }
-
-  function openEditDialog(product: Product) {
-    setEditingProduct(product)
-    setDialogOpen(true)
-  }
-
-  function handleDialogClose() {
-    setDialogOpen(false)
-    setEditingProduct(null)
-    loadProducts()
-  }
-
-  if (loading) {
-    return <div>{ta('products.loading')}</div>
-  }
+  const totalPages  = Math.ceil(total / PAGE_SIZE)
+  const variantCount = products.reduce((s, p) => s + (p.colors_json?.length ?? 0), 0)
 
   return (
-    <div>
-      <div className="mb-4 flex flex-col gap-3 sm:mb-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-2xl font-bold sm:text-3xl">{ta('products.title')}</h1>
-          <Button onClick={openCreateDialog} className="w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            {ta('products.addProduct')}
-          </Button>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-bold sm:text-3xl">Товари</h1>
+        <Button onClick={() => { setEditingProduct(null); setDialogOpen(true) }} className="w-full sm:w-auto">
+          <Plus className="mr-2 h-4 w-4" />
+          Додати товар
+        </Button>
+      </div>
+
+      {/* Stats bar */}
+      {stats && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {[
+            { label: 'Усього в БД',    value: stats.total },
+            { label: 'Активних',       value: stats.active },
+            { label: 'На складі',      value: stats.inStock },
+            { label: 'Немає на складі', value: stats.outOfStock },
+          ].map(({ label, value }) => (
+            <div key={label} className="rounded-lg border bg-white px-4 py-3 text-center shadow-sm">
+              <div className="text-2xl font-bold tabular-nums">{value}</div>
+              <div className="text-xs text-muted-foreground">{label}</div>
+            </div>
+          ))}
         </div>
-        <div className="relative sm:max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+      )}
+
+      {/* Search + Sort */}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Поиск по коду или названию..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Пошук за кодом, назвою, матеріалом..."
+            value={search}
+            onChange={e => changeSearch(e.target.value)}
             className="pl-10"
           />
         </div>
-        {searchQuery && (
-          <p className="text-sm text-muted-foreground">
-            Найдено: {filteredProducts.length} из {products.length}
-          </p>
-        )}
+        <Select value={sort} onValueChange={v => changeSort(v as SortKey)}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SORTS.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
+
+      {/* Filter tabs */}
+      <div className="flex flex-wrap gap-1.5">
+        {FILTERS.map(f => (
+          <button
+            key={f.key}
+            onClick={() => changeFilter(f.key)}
+            className={[
+              'rounded-full px-3 py-1 text-xs font-medium transition-colors',
+              filter === f.key
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200',
+            ].join(' ')}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Result count */}
+      <p className="text-sm text-muted-foreground">
+        {loading ? 'Завантаження…' : (
+          <>
+            Показано {products.length} з {total} товарів
+            {variantCount > 0 && ` · ${variantCount} варіантів на сторінці`}
+          </>
+        )}
+      </p>
 
       {/* Mobile cards */}
       <div className="space-y-3 md:hidden">
-        {filteredProducts.map((product) => (
+        {products.map(product => (
           <div key={product.id} className="rounded-lg border bg-white p-3 shadow-sm">
             <div className="mb-2 flex items-start justify-between gap-3">
               <div>
-                <div className="text-xs text-muted-foreground">{ta('products.code')}</div>
-                <div className="text-base font-semibold">{product.code}</div>
+                <div className="text-xs text-muted-foreground">Код</div>
+                <div className="font-semibold">{product.code}</div>
               </div>
-              <span className="inline-flex rounded-full bg-gray-100 px-2 py-1 text-xs">
+              <span className={[
+                'inline-flex rounded-full px-2 py-1 text-xs font-medium',
+                product.stock_status === 'in_stock' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600',
+              ].join(' ')}>
                 {product.stock_status}
               </span>
             </div>
-
             <div className="mb-1 text-sm font-medium">{product.name_uk}</div>
-
-            <div className="mb-3 text-xs text-muted-foreground">
-              <div>{ta('products.retail')}: {formatPrice(product.price_retail)}</div>
-              <div>{ta('products.drop')}: {formatPrice(product.price_drop)}</div>
+            <div className="mb-1 text-xs text-muted-foreground">
+              {product.colors_json?.length ?? 0} вар. ·{' '}
+              Роздр: {formatPrice(product.price_retail)} ·{' '}
+              Дроп: {formatPrice(product.price_drop)}
             </div>
-
-            <div className="grid grid-cols-4 gap-2">
-              <Button variant="ghost" size="sm" onClick={() => toggleActive(product)} className="h-9 px-2">
+            {!product.is_active && (
+              <div className="mb-2 text-xs text-amber-600 font-medium">Неактивний</div>
+            )}
+            <div className="grid grid-cols-4 gap-1">
+              <Button variant="ghost" size="sm" onClick={() => toggleActive(product)} className="h-9 px-2" title={product.is_active ? 'Деактивувати' : 'Активувати'}>
                 {product.is_active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => openEditDialog(product)} className="h-9 px-2">
+              <Button variant="ghost" size="sm" onClick={() => { setEditingProduct(product); setDialogOpen(true) }} className="h-9 px-2">
                 <Pencil className="h-4 w-4" />
               </Button>
               <Button variant="ghost" size="sm" onClick={() => duplicateProduct(product)} className="h-9 px-2">
                 <Copy className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => deleteProduct(product.id)} className="h-9 px-2">
+              <Button variant="ghost" size="sm" onClick={() => deleteProduct(product.id)} className="h-9 px-2 text-destructive hover:text-destructive">
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
@@ -204,65 +264,116 @@ export default function AdminProductsPage() {
       {/* Desktop table */}
       <div className="hidden overflow-hidden rounded-lg bg-white shadow md:block">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px]">
+          <table className="w-full min-w-[900px]">
             <thead className="border-b bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium">{ta('products.code')}</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">{ta('products.name')}</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">{ta('products.prices')}</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">{ta('products.stock')}</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">{ta('products.status')}</th>
-                <th className="px-4 py-3 text-right text-sm font-medium">{ta('products.actions')}</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Код</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Назва</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Варіанти</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Ціни</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Статус</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Фото</th>
+                <th className="px-4 py-3 text-right text-sm font-medium">Дії</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {filteredProducts.map((product) => (
-                <tr key={product.id}>
-                  <td className="px-4 py-3 text-sm font-medium">{product.code}</td>
-                  <td className="px-4 py-3 text-sm">{product.name_uk}</td>
-                  <td className="px-4 py-3 text-sm">
-                    <div className="text-xs text-muted-foreground">
-                      {ta('products.retail')}: {formatPrice(product.price_retail)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {ta('products.drop')}: {formatPrice(product.price_drop)}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    <span className="inline-flex rounded-full bg-gray-100 px-2 py-1 text-xs">
-                      {product.stock_status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    <Button variant="ghost" size="sm" onClick={() => toggleActive(product)}>
-                      {product.is_active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                    </Button>
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => openEditDialog(product)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => duplicateProduct(product)}>
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => deleteProduct(product.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {products.map(product => {
+                const mediaArr = product.media as any[]
+                const hasPhoto = Array.isArray(mediaArr) && mediaArr.length > 0
+                return (
+                  <tr key={product.id} className={product.is_active ? '' : 'opacity-50'}>
+                    <td className="px-4 py-3 text-sm font-mono font-medium">{product.code}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <div className="font-medium">{product.name_uk}</div>
+                      {product.name_ru && (
+                        <div className="text-xs text-muted-foreground">{product.name_ru}</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                      {product.colors_json?.length ?? 0}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                      <div>Роздр: {formatPrice(product.price_retail)}</div>
+                      <div>Дроп: {formatPrice(product.price_drop)}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={[
+                        'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
+                        product.stock_status === 'in_stock' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600',
+                      ].join(' ')}>
+                        {product.stock_status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      {hasPhoto
+                        ? <span className="text-green-600 text-xs">✓ {mediaArr.length}</span>
+                        : <span className="text-amber-500 text-xs">—</span>
+                      }
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => toggleActive(product)} title={product.is_active ? 'Деактивувати' : 'Активувати'}>
+                          {product.is_active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => { setEditingProduct(product); setDialogOpen(true) }}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => duplicateProduct(product)}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => deleteProduct(product.id)} className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
       </div>
 
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3">
+          <Button
+            variant="outline" size="sm"
+            disabled={page <= 1 || loading}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Попередня
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Сторінка {page} з {totalPages}
+          </span>
+          <Button
+            variant="outline" size="sm"
+            disabled={page >= totalPages || loading}
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+          >
+            Наступна
+            <ChevronRight className="ml-1 h-4 w-4" />
+          </Button>
+        </div>
+      )}
+
+      {!loading && products.length === 0 && (
+        <div className="py-16 text-center text-muted-foreground">
+          Товарів не знайдено
+        </div>
+      )}
+
       <ProductDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={open => { setDialogOpen(open); if (!open) setEditingProduct(null) }}
         product={editingProduct}
-        onSuccess={handleDialogClose}
+        onSuccess={() => {
+          setDialogOpen(false)
+          setEditingProduct(null)
+          loadProducts({ search, filter, sort, page })
+        }}
       />
     </div>
   )
