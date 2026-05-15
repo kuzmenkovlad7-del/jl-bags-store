@@ -22,8 +22,8 @@ const PAGE_SIZE = 50
 
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'all',            label: 'Усі' },
-  { key: 'in_stock',       label: 'На складі' },
-  { key: 'out_of_stock',   label: 'Немає' },
+  { key: 'in_stock',       label: 'В наличии' },
+  { key: 'out_of_stock',   label: 'Нет в наличии' },
   { key: 'with_photos',    label: 'З фото' },
   { key: 'without_photos', label: 'Без фото' },
   { key: 'missing_desc',   label: 'Без опису' },
@@ -226,15 +226,15 @@ export default function AdminProductsPage() {
               </div>
               <span className={[
                 'inline-flex rounded-full px-2 py-1 text-xs font-medium',
-                product.stock_status === 'in_stock' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600',
+                product.stock_status === 'in_stock' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600',
               ].join(' ')}>
-                {product.stock_status}
+                {product.stock_status === 'in_stock' ? 'В наличии' : 'Нет в наличии'}
               </span>
             </div>
             <div className="mb-1 text-sm font-medium">{product.name_uk}</div>
             <div className="mb-1 text-xs text-muted-foreground">
               {product.colors_json?.length ?? 0} вар. ·{' '}
-              Роздр: {formatPrice(product.price_retail)} ·{' '}
+              Розница: {formatPrice(product.price_retail)} ·{' '}
               Дроп: {formatPrice(product.price_drop)}
             </div>
             {!product.is_active && (
@@ -290,15 +290,15 @@ export default function AdminProductsPage() {
                       {product.colors_json?.length ?? 0}
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground">
-                      <div>Роздр: {formatPrice(product.price_retail)}</div>
+                      <div>Розница: {formatPrice(product.price_retail)}</div>
                       <div>Дроп: {formatPrice(product.price_drop)}</div>
                     </td>
                     <td className="px-4 py-3">
                       <span className={[
                         'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
-                        product.stock_status === 'in_stock' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600',
+                        product.stock_status === 'in_stock' ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600',
                       ].join(' ')}>
-                        {product.stock_status}
+                        {product.stock_status === 'in_stock' ? 'В наличии' : 'Нет в наличии'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-xs">
