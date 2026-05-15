@@ -26,8 +26,8 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'out_of_stock',   label: 'Нет в наличии' },
   { key: 'with_photos',    label: 'З фото' },
   { key: 'without_photos', label: 'Без фото' },
-  { key: 'missing_desc',   label: 'Без опису' },
-  { key: 'missing_retail', label: 'Без роздр. ціни' },
+  { key: 'missing_desc',   label: 'Без описания' },
+  { key: 'missing_retail', label: 'Без розн. цены' },
 ]
 
 const SORTS: { key: SortKey; label: string }[] = [
@@ -265,12 +265,12 @@ export default function AdminProductsPage() {
             <thead className="border-b bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-sm font-medium">Код</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">Назва</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">Варіанти</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">Ціни</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Название</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Варианты</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">Цены</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Статус</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">Фото</th>
-                <th className="px-4 py-3 text-right text-sm font-medium">Дії</th>
+                <th className="px-4 py-3 text-right text-sm font-medium">Действия</th>
               </tr>
             </thead>
             <tbody className="divide-y">
