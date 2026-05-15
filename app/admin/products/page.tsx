@@ -138,7 +138,7 @@ export default function AdminProductsPage() {
     loadProducts({ search, filter, sort, page })
   }
 
-  const totalPages  = Math.ceil(total / PAGE_SIZE)
+  const totalPages   = Math.ceil(total / PAGE_SIZE)
   const variantCount = products.reduce((s, p) => s + (p.colors_json?.length ?? 0), 0)
 
   return (
@@ -152,20 +152,22 @@ export default function AdminProductsPage() {
         </Button>
       </div>
 
-      {/* Stats bar */}
+      {/* Compact stats bar */}
       {stats && (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {[
-            { label: 'Усього в БД',    value: stats.total },
-            { label: 'Активних',       value: stats.active },
-            { label: 'На складі',      value: stats.inStock },
-            { label: 'Немає на складі', value: stats.outOfStock },
-          ].map(({ label, value }) => (
-            <div key={label} className="rounded-lg border bg-white px-4 py-3 text-center shadow-sm">
-              <div className="text-2xl font-bold tabular-nums">{value}</div>
-              <div className="text-xs text-muted-foreground">{label}</div>
-            </div>
-          ))}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          <span><span className="font-semibold text-gray-900">{stats.total}</span> всего товаров</span>
+          <span className="text-gray-300">·</span>
+          <span><span className="font-semibold text-gray-900">{stats.active}</span> активных</span>
+          <span className="text-gray-300">·</span>
+          <span><span className="font-semibold text-green-700">{stats.inStock}</span> в наличии</span>
+          <span className="text-gray-300">·</span>
+          <span><span className="font-semibold text-gray-500">{stats.outOfStock}</span> нет в наличии</span>
+          {variantCount > 0 && (
+            <>
+              <span className="text-gray-300">·</span>
+              <span><span className="font-semibold text-gray-900">{variantCount}</span> вариантов на странице</span>
+            </>
+          )}
         </div>
       )}
 
@@ -210,12 +212,7 @@ export default function AdminProductsPage() {
 
       {/* Result count */}
       <p className="text-sm text-muted-foreground">
-        {loading ? 'Завантаження…' : (
-          <>
-            Показано {products.length} з {total} товарів
-            {variantCount > 0 && ` · ${variantCount} варіантів на сторінці`}
-          </>
-        )}
+        {loading ? 'Загрузка…' : `Показано ${products.length} из ${total} товаров`}
       </p>
 
       {/* Mobile cards */}
@@ -304,10 +301,10 @@ export default function AdminProductsPage() {
                         {product.stock_status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm">
+                    <td className="px-4 py-3 text-xs">
                       {hasPhoto
-                        ? <span className="text-green-600 text-xs">✓ {mediaArr.length}</span>
-                        : <span className="text-amber-500 text-xs">—</span>
+                        ? <span className="text-green-600">{mediaArr.length} фото</span>
+                        : <span className="text-amber-500">Нет фото</span>
                       }
                     </td>
                     <td className="px-4 py-3 text-right">
