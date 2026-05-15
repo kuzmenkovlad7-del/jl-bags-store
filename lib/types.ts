@@ -23,6 +23,11 @@ export interface Product {
   is_hit?: boolean
   is_sale?: boolean
   sort_order: number
+  seo_title?: string | null
+  seo_description?: string | null
+  seo_h1?: string | null
+  og_title?: string | null
+  og_description?: string | null
   created_at: string
   updated_at: string
   media?: ProductMedia[]
