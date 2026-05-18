@@ -207,7 +207,7 @@ export function ProductDialog({ open, onOpenChange, product, onSuccess }: Produc
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-12px)] sm:w-full max-w-2xl max-h-[90vh] overflow-y-auto p-3 sm:p-6">
+      <DialogContent className="w-[calc(100vw-12px)] sm:w-full max-w-2xl h-[calc(100svh-2rem)] sm:h-auto sm:max-h-[90vh] overflow-y-auto p-3 sm:p-6">
         <DialogHeader>
           <DialogTitle>{product ? ta('products.editProduct') : ta('products.addProduct')}</DialogTitle>
         </DialogHeader>

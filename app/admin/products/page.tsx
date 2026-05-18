@@ -144,8 +144,8 @@ export default function AdminProductsPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold sm:text-3xl">Товари</h1>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-xl font-bold sm:text-3xl">Товары</h1>
         <Button onClick={() => { setEditingProduct(null); setDialogOpen(true) }} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Додати товар
