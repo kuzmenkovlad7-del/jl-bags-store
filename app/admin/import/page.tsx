@@ -21,6 +21,7 @@ interface ParsedVariant {
 
 type ImportState = 'idle' | 'preview' | 'importing' | 'done'
 type SyncState   = 'idle' | 'syncing' | 'done' | 'error'
+type SourceType  = 'csv' | 'published' | 'spreadsheet' | 'raw' | null
 
 
 // ── CSV helpers ───────────────────────────────────────────────────────────────
@@ -163,11 +164,12 @@ export default function AdminImportPage() {
   const [fatalError, setFatalError]   = useState<string | null>(null)
 
   // Sync state
-  const [syncState, setSyncState]     = useState<SyncState>('idle')
-  const [syncReport, setSyncReport]   = useState<ImportReport | null>(null)
-  const [syncError, setSyncError]     = useState<string | null>(null)
-  const [lastSyncAt, setLastSyncAt]   = useState<string | null>(null)
+  const [syncState, setSyncState]       = useState<SyncState>('idle')
+  const [syncReport, setSyncReport]     = useState<ImportReport | null>(null)
+  const [syncError, setSyncError]       = useState<string | null>(null)
+  const [lastSyncAt, setLastSyncAt]     = useState<string | null>(null)
   const [syncProgress, setSyncProgress] = useState(0)
+  const [sourceType, setSourceType]     = useState<SourceType>(null)
 
   // Load last sync result from localStorage
   useEffect(() => {
@@ -237,6 +239,7 @@ export default function AdminImportPage() {
       setSyncProgress(100)
       setSyncReport(rep)
       setLastSyncAt(rep.syncedAt)
+      if (json.sourceType) setSourceType(json.sourceType as SourceType)
       setSyncState('done')
 
       // Persist to localStorage
@@ -486,27 +489,38 @@ export default function AdminImportPage() {
     )
   }
 
-  // ── Idle state ────────────────────────────────────────────────────────────────
-  const syncConfigured = true // auth uses Supabase session, no public secret needed
+  // ── Source type label ─────────────────────────────────────────────────────────
+  const SOURCE_LABELS: Record<string, string> = {
+    csv:         'CSV-ссылка (прямой экспорт)',
+    published:   'Опубликованная таблица (/d/e/…)',
+    spreadsheet: 'Обычная таблица (export по ID)',
+    raw:         'Пользовательский URL',
+  }
 
+  // ── Idle state ────────────────────────────────────────────────────────────────
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Импорт прайса</h1>
-      <div className="space-y-6 max-w-2xl">
+      <h1 className="text-2xl font-bold mb-4 sm:mb-6">Импорт прайса</h1>
+      <div className="space-y-4 sm:space-y-6 max-w-2xl">
 
         {/* ── Sync from Google Sheets ────────────────────────────────────────── */}
-        <div className="bg-white rounded-lg shadow p-6 space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6 space-y-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <h2 className="font-semibold text-base">Синхронизировать прайс</h2>
               <p className="text-sm text-muted-foreground mt-0.5">
                 Загрузить актуальные данные напрямую из Google Sheets
               </p>
+              {sourceType && (
+                <p className="text-xs text-blue-600 mt-1">
+                  Источник: {SOURCE_LABELS[sourceType] ?? sourceType}
+                </p>
+              )}
             </div>
             <Button
               onClick={handleSync}
-              disabled={syncState === 'syncing' || !syncConfigured}
-              className="shrink-0"
+              disabled={syncState === 'syncing'}
+              className="w-full sm:w-auto shrink-0"
             >
               {syncState === 'syncing'
                 ? <><Loader2 className="h-4 w-4 animate-spin mr-2" />Синхронизация...</>
@@ -515,6 +529,15 @@ export default function AdminImportPage() {
             </Button>
           </div>
 
+          {/* Requirements note */}
+          <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600 space-y-1">
+            <p className="font-medium text-gray-700">Требования для автоматической синхронизации:</p>
+            <ul className="list-disc ml-4 space-y-0.5">
+              <li>Таблица опубликована как CSV: <span className="font-mono">Файл → Поделиться → Опубликовать в интернете → выберите лист → CSV</span></li>
+              <li>В Vercel задана переменная <span className="font-mono">GOOGLE_SHEET_CSV_URL</span> (ссылка на таблицу или опубликованный CSV)</li>
+            </ul>
+            <p className="text-gray-500">Если таблица приватная — используйте ручной экспорт CSV.</p>
+          </div>
 
           {/* Sync progress */}
           {syncState === 'syncing' && (
@@ -530,23 +553,30 @@ export default function AdminImportPage() {
           {syncState === 'error' && syncError && (
             <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
               <XCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-              <span>{syncError}</span>
+              <div className="space-y-1">
+                <p>{syncError}</p>
+                {(syncError.includes('HTML') || syncError.includes('404') || syncError.includes('403')) && (
+                  <p className="text-xs text-red-600">
+                    Решение: откройте таблицу → Файл → Поделиться → Опубликовать в интернете → выберите нужный лист → формат CSV → нажмите «Опубликовать» → скопируйте ссылку в переменную GOOGLE_SHEET_CSV_URL.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
           {/* Last sync result */}
-          {(syncState === 'done') && syncReport && (
+          {syncState === 'done' && syncReport && (
             <div className="border rounded-lg p-4 space-y-3">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {syncReport.success
-                  ? <CheckCircle className="h-4 w-4 text-green-500" />
-                  : <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                  ? <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
+                  : <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />
                 }
                 <span className="text-sm font-medium">
                   {syncReport.success ? 'Синхронизация успешна' : 'Синхронизация с ошибками'}
                 </span>
                 {lastSyncAt && (
-                  <span className="ml-auto text-xs text-muted-foreground">
+                  <span className="ml-auto text-xs text-muted-foreground whitespace-nowrap">
                     {formatDateTime(lastSyncAt)}
                   </span>
                 )}
@@ -563,7 +593,7 @@ export default function AdminImportPage() {
         </div>
 
         {/* ── Manual CSV import ────────────────────────────────────────────────── */}
-        <div className="bg-white rounded-lg shadow p-6 space-y-6">
+        <div className="bg-white rounded-lg shadow p-4 sm:p-6 space-y-4 sm:space-y-6">
           <h2 className="font-semibold text-base">Ручной импорт CSV</h2>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm space-y-2">
