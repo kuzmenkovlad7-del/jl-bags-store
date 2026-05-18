@@ -339,8 +339,8 @@ export async function runImportFromVariants(
             color:                 v.color,
             source_text:           v.source_text,
             normalized_source_key: v.normalized_key,
-            price_retail:          existing.price_retail ?? 0,
-            price_drop:            v.price_drop,
+            price_retail:          0,
+            price_drop:            0,
             quantity:              v.quantity,
             reserved_quantity:     0,
           })

@@ -138,7 +138,7 @@ function SyncResultCard({ report }: { report: ImportReport }) {
       <span className="font-medium text-right text-green-700">{report.variantsUpdated}</span>
       <span className="text-muted-foreground">Вариантов добавлено</span>
       <span className="font-medium text-right text-blue-600">{report.variantsAdded}</span>
-      <span className="text-muted-foreground">Без цены</span>
+      <span className="text-muted-foreground">Без цены в админке</span>
       <span className={`font-medium text-right ${report.missingPrice > 0 ? 'text-yellow-600' : ''}`}>
         {report.missingPrice}
       </span>
@@ -353,7 +353,7 @@ export default function AdminImportPage() {
                 <span className="font-medium text-right text-green-700">{report.variantsUpdated}</span>
                 <span className="text-muted-foreground">Вариантов добавлено</span>
                 <span className="font-medium text-right text-blue-600">{report.variantsAdded}</span>
-                <span className="text-muted-foreground">Строк без цены</span>
+                <span className="text-muted-foreground">Без цены в админке</span>
                 <span className={`font-medium text-right ${report.missingPrice > 0 ? 'text-yellow-600' : ''}`}>
                   {report.missingPrice}
                 </span>
@@ -430,7 +430,7 @@ export default function AdminImportPage() {
               { val: parsedVariants.length, label: 'строк разобрано', color: '' },
               { val: uniqueCodes,           label: 'уникальных кодов', color: '' },
               { val: skippedCount,          label: 'строк пропущено',  color: '' },
-              { val: missingPrice,          label: 'без цены', color: missingPrice > 0 ? 'text-yellow-600' : 'text-green-600' },
+              { val: missingPrice,          label: 'без цены в админке', color: missingPrice > 0 ? 'text-yellow-600' : 'text-green-600' },
             ].map(({ val, label, color }) => (
               <div key={label} className="border rounded-lg p-3">
                 <p className={`text-2xl font-bold ${color}`}>{val}</p>
@@ -527,6 +527,11 @@ export default function AdminImportPage() {
                 : <><RefreshCw className="h-4 w-4 mr-2" />Синхронизировать</>
               }
             </Button>
+          </div>
+
+          {/* Sync scope note */}
+          <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+            Синхронизация обновляет только остатки. Цены, фото и описания заполняются в админке.
           </div>
 
           {/* Requirements note */}
